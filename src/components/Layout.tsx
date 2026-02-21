@@ -1,8 +1,11 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Table2, AlertTriangle, Settings, RefreshCw, Menu, X, Clock, Zap } from 'lucide-react';
+import { LayoutDashboard, Table2, AlertTriangle, Settings, RefreshCw, Menu, X, Clock, Zap, Users, FileText, CreditCard, HelpCircle, Building2 } from 'lucide-react';
 import { RefreshConfig } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import NotificationBell from './NotificationBell';
+import UserDropdown from './UserDropdown';
 
 interface Props {
   children: ReactNode;
@@ -11,15 +14,9 @@ interface Props {
   onRefresh: () => void;
 }
 
-const NAV_ITEMS = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/tracker', icon: Table2, label: 'Workflow Tracker' },
-  { path: '/bottlenecks', icon: AlertTriangle, label: 'Bottleneck Analysis' },
-  { path: '/settings', icon: Settings, label: 'Settings' },
-];
-
 export default function Layout({ children, refreshConfig, setRefreshConfig, onRefresh }: Props) {
   const location = useLocation();
+  const { orgRole, organization, hasPermission } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -28,6 +25,20 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
     onRefresh();
     setTimeout(() => setRefreshing(false), 1000);
   };
+
+  const NAV_ITEMS = [
+    { path: '/app', icon: LayoutDashboard, label: 'Dashboard', roles: ['super_admin', 'admin', 'approver', 'viewer'] },
+    { path: '/app/tracker', icon: Table2, label: 'Workflow Tracker', roles: ['super_admin', 'admin', 'approver', 'viewer'] },
+    { path: '/app/bottlenecks', icon: AlertTriangle, label: 'Bottleneck Analysis', roles: ['super_admin', 'admin'] },
+    { path: '/app/team', icon: Users, label: 'Team', roles: ['super_admin', 'admin'] },
+    { path: '/app/activity', icon: FileText, label: 'Activity Log', roles: ['super_admin', 'admin'] },
+    { path: '/app/billing', icon: CreditCard, label: 'Billing', roles: ['super_admin'] },
+    { path: '/app/org-settings', icon: Building2, label: 'Organization', roles: ['super_admin'] },
+    { path: '/app/settings', icon: Settings, label: 'Settings', roles: ['super_admin', 'admin', 'approver', 'viewer'] },
+    { path: '/app/help', icon: HelpCircle, label: 'Help & Support', roles: ['super_admin', 'admin', 'approver', 'viewer'] },
+  ].filter(item => item.roles.includes(orgRole));
+
+  const currentLabel = NAV_ITEMS.find(i => i.path === location.pathname)?.label || 'Dashboard';
 
   return (
     <div className="min-h-screen flex">
@@ -41,14 +52,14 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
                 <Zap className="w-5 h-5 text-navy-dark" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white">JotForm</h1>
-                <p className="text-xs text-gold">Workflow Dashboard</p>
+                <h1 className="text-lg font-bold text-white">JotFlow</h1>
+                <p className="text-xs text-gold truncate max-w-[160px]">{organization?.name || 'Workflow Dashboard'}</p>
               </div>
             </div>
           </div>
 
           {/* Nav */}
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {NAV_ITEMS.map(item => {
               const active = location.pathname === item.path;
               return (
@@ -118,23 +129,19 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
                 {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
               <div>
-                <h2 className="text-lg font-semibold text-white">
-                  {NAV_ITEMS.find(i => i.path === location.pathname)?.label || 'Approval Detail'}
-                </h2>
-                <p className="text-xs text-gray-500">Dubai Government Entity • Workflow Management</p>
+                <h2 className="text-lg font-semibold text-white">{currentLabel}</h2>
+                <p className="text-xs text-gray-500">{organization?.name || 'Dubai Government Entity'} • Workflow Management</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs text-emerald-400 font-medium">Demo Mode</span>
-              </div>
               <button
                 onClick={handleRefresh}
                 className="p-2 rounded-xl bg-navy-light/30 hover:bg-navy-light/50 text-gray-400 hover:text-gold transition-all"
               >
                 <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
+              <NotificationBell />
+              <UserDropdown />
             </div>
           </div>
         </header>
