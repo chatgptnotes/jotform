@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Download, Filter, X } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Download, Filter, X, Loader2, Inbox } from 'lucide-react';
 import { Submission } from '../types';
 import SubmissionModal from '../components/SubmissionModal';
 import { exportToExcel } from '../services/exportService';
@@ -36,9 +36,22 @@ const levelColors: Record<string, string> = {
 };
 
 export default function WorkflowTracker({ data }: Props) {
-  const { paginatedSubmissions, filteredSubmissions, filters, setFilters, sort, setSort, pagination, setPagination } = data;
+  const { paginatedSubmissions, filteredSubmissions, filters, setFilters, sort, setSort, pagination, setPagination, loading } = data;
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcut: / to focus search
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, []);
 
   const handleSort = (key: string) => {
     setSort(prev => ({
@@ -61,8 +74,9 @@ export default function WorkflowTracker({ data }: Props) {
         <div className="flex-1 min-w-[200px] relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <input
+            ref={searchRef}
             type="text"
-            placeholder="Search by title, reference, or name..."
+            placeholder="Search by title, reference, or name... (press /)"
             value={filters.search}
             onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
             className="w-full pl-10 pr-4 py-2.5 bg-navy border border-navy-light/30 rounded-xl text-sm text-white placeholder-gray-500 focus:border-gold/50 focus:outline-none"
@@ -103,6 +117,40 @@ export default function WorkflowTracker({ data }: Props) {
         </motion.div>
       )}
 
+      {/* Active Filter Chips */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-gray-500">Active filters:</span>
+          {filters.approvalLevel && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gold/10 text-gold text-xs font-medium">
+              Level: {filters.approvalLevel}
+              <button onClick={() => setFilters(prev => ({ ...prev, approvalLevel: '' }))} className="hover:text-white"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {filters.department && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-medium">
+              {filters.department}
+              <button onClick={() => setFilters(prev => ({ ...prev, department: '' }))} className="hover:text-white"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {filters.status && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-medium">
+              {filters.status}
+              <button onClick={() => setFilters(prev => ({ ...prev, status: '' }))} className="hover:text-white"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          {(filters.dateFrom || filters.dateTo) && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium">
+              {filters.dateFrom || '...'} → {filters.dateTo || '...'}
+              <button onClick={() => setFilters(prev => ({ ...prev, dateFrom: '', dateTo: '' }))} className="hover:text-white"><X className="w-3 h-3" /></button>
+            </span>
+          )}
+          <button onClick={() => setFilters({ approvalLevel: '', department: '', status: '', dateFrom: '', dateTo: '', search: filters.search })} className="text-xs text-red-400 hover:text-red-300 underline">
+            Clear all
+          </button>
+        </div>
+      )}
+
       {/* Results Count */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{filteredSubmissions.length.toLocaleString()} submissions found</p>
@@ -119,9 +167,9 @@ export default function WorkflowTracker({ data }: Props) {
 
       {/* Table */}
       <div className="glass-card overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[65vh]">
           <table className="w-full">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-navy">
               <tr className="border-b border-navy-light/20">
                 {[
                   { key: 'referenceNumber', label: 'Reference' },
@@ -147,7 +195,20 @@ export default function WorkflowTracker({ data }: Props) {
               </tr>
             </thead>
             <tbody>
-              {paginatedSubmissions.map((sub, i) => (
+              {loading && (
+                <tr><td colSpan={8} className="py-16 text-center">
+                  <Loader2 className="w-8 h-8 text-gold animate-spin mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">Loading submissions...</p>
+                </td></tr>
+              )}
+              {!loading && paginatedSubmissions.length === 0 && (
+                <tr><td colSpan={8} className="py-16 text-center">
+                  <Inbox className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-400 font-medium">No submissions found</p>
+                  <p className="text-gray-600 text-sm mt-1">{hasActiveFilters ? 'Try adjusting your filters' : 'Submissions will appear here once data is loaded'}</p>
+                </td></tr>
+              )}
+              {!loading && paginatedSubmissions.map((sub, i) => (
                 <motion.tr
                   key={sub.id}
                   initial={{ opacity: 0, x: -10 }}

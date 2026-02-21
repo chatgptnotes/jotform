@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from 'recharts';
-import { FileText, CheckCircle2, Clock, AlertTriangle, AlertOctagon, Download } from 'lucide-react';
+import { FileText, CheckCircle2, Clock, AlertTriangle, AlertOctagon, Download, Loader2 } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import { exportChartAsPng } from '../services/exportService';
 
@@ -11,7 +11,18 @@ interface Props {
 
 export default function Dashboard({ data }: Props) {
   const navigate = useNavigate();
-  const { stats, approvalStats, departmentStats, trendData } = data;
+  const { stats, approvalStats, departmentStats, trendData, loading, refreshConfig } = data;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-10 h-10 text-gold animate-spin mx-auto" />
+          <p className="text-gray-400 text-sm">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
 
   const CHART_COLORS = ['#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444', '#10B981', '#6B7280'];
 
@@ -29,13 +40,21 @@ export default function Dashboard({ data }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Last Updated */}
+      {refreshConfig.lastUpdated && (
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <Clock className="w-3.5 h-3.5" />
+          <span>Last updated: {new Date(refreshConfig.lastUpdated).toLocaleString()}</span>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard title="Total Forms" value={stats.totalForms} icon={FileText} color="gold" delay={0} />
-        <StatCard title="Completed" value={stats.completed} icon={CheckCircle2} color="emerald" delay={0.1} />
-        <StatCard title="In Progress" value={stats.inProgress} icon={Clock} color="blue" delay={0.2} />
-        <StatCard title="Stuck > 7 Days" value={stats.stuckOver7Days} icon={AlertTriangle} color="amber" delay={0.3} />
-        <StatCard title="Stuck > 30 Days" value={stats.stuckOver30Days} icon={AlertOctagon} color="red" delay={0.4} />
+        <StatCard title="Total Forms" value={stats.totalForms} icon={FileText} color="gold" delay={0} onClick={() => navigate('/app/tracker')} />
+        <StatCard title="Completed" value={stats.completed} icon={CheckCircle2} color="emerald" delay={0.1} onClick={() => navigate('/app/tracker')} />
+        <StatCard title="In Progress" value={stats.inProgress} icon={Clock} color="blue" delay={0.2} onClick={() => navigate('/app/tracker')} />
+        <StatCard title="Stuck > 7 Days" value={stats.stuckOver7Days} icon={AlertTriangle} color="amber" delay={0.3} onClick={() => navigate('/app/bottlenecks')} />
+        <StatCard title="Stuck > 30 Days" value={stats.stuckOver30Days} icon={AlertOctagon} color="red" delay={0.4} onClick={() => navigate('/app/bottlenecks')} />
       </div>
 
       {/* Charts Row */}

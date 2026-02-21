@@ -1,7 +1,7 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Table2, AlertTriangle, Settings, RefreshCw, Menu, X, Clock, Zap, Users, FileText, CreditCard, HelpCircle, Building2 } from 'lucide-react';
+import { LayoutDashboard, Table2, AlertTriangle, Settings, RefreshCw, Menu, X, Clock, Zap, Users, FileText, CreditCard, HelpCircle, Building2, BarChart3, Kanban } from 'lucide-react';
 import { RefreshConfig } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from './NotificationBell';
@@ -20,6 +20,15 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Esc to close sidebar on mobile
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && sidebarOpen) setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [sidebarOpen]);
+
   const handleRefresh = () => {
     setRefreshing(true);
     onRefresh();
@@ -30,6 +39,8 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
     { path: '/app', icon: LayoutDashboard, label: 'Dashboard', roles: ['super_admin', 'admin', 'approver', 'viewer'] },
     { path: '/app/tracker', icon: Table2, label: 'Workflow Tracker', roles: ['super_admin', 'admin', 'approver', 'viewer'] },
     { path: '/app/bottlenecks', icon: AlertTriangle, label: 'Bottleneck Analysis', roles: ['super_admin', 'admin'] },
+    { path: '/app/kanban', icon: Kanban, label: 'Kanban Board', roles: ['super_admin', 'admin', 'approver'] },
+    { path: '/app/analytics', icon: BarChart3, label: 'Advanced Analytics', roles: ['super_admin', 'admin'] },
     { path: '/app/team', icon: Users, label: 'Team', roles: ['super_admin', 'admin'] },
     { path: '/app/activity', icon: FileText, label: 'Activity Log', roles: ['super_admin', 'admin'] },
     { path: '/app/billing', icon: CreditCard, label: 'Billing', roles: ['super_admin'] },

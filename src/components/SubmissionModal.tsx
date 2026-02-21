@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2, Clock, XCircle, User, Calendar, Building2, FileText } from 'lucide-react';
 import { Submission } from '../types';
@@ -17,6 +18,16 @@ const levelColors: Record<string, string> = {
 };
 
 export default function SubmissionModal({ submission, onClose }: Props) {
+  // Keyboard: Esc to close
+  useEffect(() => {
+    if (!submission) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [submission, onClose]);
+
   if (!submission) return null;
 
   const levelLabel = typeof submission.currentApprovalLevel === 'number'

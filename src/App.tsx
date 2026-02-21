@@ -17,6 +17,8 @@ import Billing from './pages/Billing';
 import Profile from './pages/Profile';
 import ActivityLog from './pages/ActivityLog';
 import HelpSupport from './pages/HelpSupport';
+import AdvancedAnalytics from './pages/AdvancedAnalytics';
+import KanbanBoard from './pages/KanbanBoard';
 import { useSubmissions } from './hooks/useSubmissions';
 import { Loader2 } from 'lucide-react';
 
@@ -37,6 +39,8 @@ function ProtectedApp() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/activity" element={<ActivityLog />} />
         <Route path="/help" element={<HelpSupport />} />
+        <Route path="/analytics" element={<AdvancedAnalytics data={data} />} />
+        <Route path="/kanban" element={<KanbanBoard data={data} />} />
       </Routes>
     </Layout>
   );
