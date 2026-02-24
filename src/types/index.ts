@@ -122,3 +122,35 @@ export interface PaginationConfig {
   perPage: number;
   total: number;
 }
+
+export interface AutoApproveRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  conditions: {
+    formTypes?: string[];
+    maxDaysAtLevel?: number;
+    maxPriority?: 'low' | 'medium';
+    approvalLevels?: ApprovalLevel[];
+  };
+  action: 'approve' | 'escalate';
+}
+
+export interface SidebarCategory {
+  id: string;
+  label: string;
+  type: 'all' | 'department' | 'form-group';
+  filter?: {
+    departments?: string[];
+    formIds?: string[];
+  };
+  children?: SidebarCategory[];
+}
+
+export interface DiscoveredForm {
+  id: string;
+  title: string;
+  count: number;
+  status: string;
+  created_at: string;
+}

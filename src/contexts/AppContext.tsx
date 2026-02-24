@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import { SidebarCategory, AutoApproveRule } from '../types';
+import { DEFAULT_AUTO_APPROVE_RULES } from '../services/mockData';
 
 export type Language = 'en' | 'ar';
 export type ViewRole = 'approver' | 'manager' | 'executive';
@@ -76,6 +78,10 @@ interface AppContextType {
   selectAll: (ids: string[]) => void;
   clearSelection: () => void;
   t: (key: string) => string;
+  activeSidebarCategory: SidebarCategory | null;
+  setActiveSidebarCategory: (cat: SidebarCategory | null) => void;
+  autoApproveRules: AutoApproveRule[];
+  setAutoApproveRules: (rules: AutoApproveRule[]) => void;
 }
 
 const translations: Record<string, Record<Language, string>> = {
@@ -154,6 +160,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   ]);
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [selectedSubmissions, setSelectedSubmissions] = useState<Set<string>>(new Set());
+  const [activeSidebarCategory, setActiveSidebarCategory] = useState<SidebarCategory | null>(null);
+  const [autoApproveRules, setAutoApproveRules] = useState<AutoApproveRule[]>(DEFAULT_AUTO_APPROVE_RULES);
 
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
@@ -232,6 +240,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       auditLog, addAuditEntry,
       selectedSubmissions, toggleSelection, selectAll, clearSelection,
       t,
+      activeSidebarCategory, setActiveSidebarCategory,
+      autoApproveRules, setAutoApproveRules,
     }}>
       {children}
     </AppContext.Provider>
