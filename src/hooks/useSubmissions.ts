@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Submission, FilterConfig, SortConfig, PaginationConfig, RefreshConfig } from '../types';
-import { generateMockSubmissions, getDashboardStats, getApprovalLevelStats, getDepartmentStats, getTrendData, getBottleneckData, getHeatmapData } from '../services/mockData';
+import { Submission, ApprovalLevel, FilterConfig, SortConfig, PaginationConfig, RefreshConfig } from '../types';
+import { generateMockSubmissions, getDashboardStats, getApprovalLevelStats, getDepartmentStats, getTrendData, getBottleneckData, getHeatmapData, APPROVERS } from '../services/mockData';
 
 const STORAGE_KEY = 'jotform_submissions_cache';
 
@@ -102,8 +102,61 @@ export function useSubmissions() {
   const bottleneckData = useMemo(() => getBottleneckData(allSubmissions), [allSubmissions]);
   const heatmapData = useMemo(() => getHeatmapData(allSubmissions), [allSubmissions]);
 
+  const approveSubmission = useCallback((submissionId: string, approverName: string, comments?: string) => {
+    setAllSubmissions(prev => prev.map(sub => {
+      if (sub.id !== submissionId) return sub;
+      const currentLevel = sub.currentApprovalLevel as number;
+      if (typeof currentLevel !== 'number') return sub;
+      const newLevel: ApprovalLevel | 'completed' = currentLevel >= 4 ? 'completed' : ((currentLevel + 1) as ApprovalLevel);
+
+      const updatedHistory = sub.approvalHistory.map(h =>
+        h.level === currentLevel && h.status === 'pending'
+          ? { ...h, status: 'approved' as const, date: new Date().toISOString().split('T')[0], comments: comments || 'Approved' }
+          : h
+      );
+
+      if (typeof newLevel === 'number') {
+        const nextApprover = APPROVERS[((newLevel - 1) * 2) % APPROVERS.length];
+        updatedHistory.push({
+          level: newLevel,
+          approverName: nextApprover?.en || 'Unknown',
+          approverNameAr: nextApprover?.ar,
+          status: 'pending' as const,
+        });
+      }
+
+      return {
+        ...sub,
+        currentApprovalLevel: newLevel,
+        daysAtCurrentLevel: 0,
+        overallStatus: 'on-track' as const,
+        approvalHistory: updatedHistory,
+      };
+    }));
+  }, []);
+
+  const rejectSubmission = useCallback((submissionId: string, approverName: string, reason: string) => {
+    setAllSubmissions(prev => prev.map(sub => {
+      if (sub.id !== submissionId) return sub;
+      const currentLevel = sub.currentApprovalLevel as number;
+      if (typeof currentLevel !== 'number') return sub;
+
+      return {
+        ...sub,
+        currentApprovalLevel: 'rejected' as const,
+        daysAtCurrentLevel: 0,
+        approvalHistory: sub.approvalHistory.map(h =>
+          h.level === currentLevel && h.status === 'pending'
+            ? { ...h, status: 'rejected' as const, date: new Date().toISOString().split('T')[0], comments: reason }
+            : h
+        ),
+      };
+    }));
+  }, []);
+
   return {
     allSubmissions,
+    setAllSubmissions,
     filteredSubmissions,
     paginatedSubmissions,
     loading,
@@ -122,5 +175,7 @@ export function useSubmissions() {
     refreshConfig,
     setRefreshConfig,
     refresh: loadData,
+    approveSubmission,
+    rejectSubmission,
   };
 }

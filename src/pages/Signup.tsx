@@ -16,7 +16,7 @@ export default function Signup() {
     setLoading(true);
     setError('');
     const { error: err } = await signUp(form.email, form.password, form.fullName, form.orgName, form.department);
-    if (err) setError(String(err));
+    if (err) setError(typeof err === 'string' ? err : (err as Error)?.message || 'Signup failed. Please try again.');
     else setSuccess(true);
     setLoading(false);
   };

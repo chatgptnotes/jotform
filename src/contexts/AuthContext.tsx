@@ -43,14 +43,55 @@ interface AuthContextType {
   hasPermission: (required: OrgRole[]) => boolean;
 }
 
+const DEV_MOCK_AUTH = import.meta.env.VITE_DEV_MOCK_AUTH === 'true';
+
+const MOCK_USER = {
+  id: 'mock-user-001',
+  email: 'bhupendrabalapure@gmail.com',
+  app_metadata: {},
+  user_metadata: { full_name: 'Bhupendra Balapure' },
+  aud: 'authenticated',
+  created_at: '2024-01-01T00:00:00Z',
+} as unknown as User;
+
+const MOCK_SESSION = {
+  access_token: 'mock-token',
+  refresh_token: 'mock-refresh',
+  user: MOCK_USER,
+  expires_at: 9999999999,
+  expires_in: 9999999,
+  token_type: 'bearer',
+} as unknown as Session;
+
+const MOCK_PROFILE: Profile = {
+  id: 'mock-profile-001',
+  user_id: 'mock-user-001',
+  full_name: 'Bhupendra Balapure',
+  department: 'IT',
+  role: 'super_admin',
+  avatar_url: '',
+  org_id: 'mock-org-001',
+  preferences: { theme: 'dark', language: 'en' },
+};
+
+const MOCK_ORG: Organization = {
+  id: 'mock-org-001',
+  name: 'Bhupendea',
+  logo_url: null,
+  branding: {},
+  owner_id: 'mock-user-001',
+  plan: 'starter',
+  created_at: '2024-01-01T00:00:00Z',
+};
+
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [organization, setOrganization] = useState<Organization | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(DEV_MOCK_AUTH ? MOCK_USER : null);
+  const [session, setSession] = useState<Session | null>(DEV_MOCK_AUTH ? MOCK_SESSION : null);
+  const [profile, setProfile] = useState<Profile | null>(DEV_MOCK_AUTH ? MOCK_PROFILE : null);
+  const [organization, setOrganization] = useState<Organization | null>(DEV_MOCK_AUTH ? MOCK_ORG : null);
+  const [loading, setLoading] = useState(DEV_MOCK_AUTH ? false : true);
 
   const orgRole: OrgRole = profile?.role || 'viewer';
 
@@ -67,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (DEV_MOCK_AUTH) return; // Skip real auth in mock mode
+
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
@@ -98,8 +141,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName: string, orgName: string, department: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error || !data.user) return { error };
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName, org_name: orgName, department },
+      },
+    });
+
+    if (error) {
+      // Return user-friendly error messages
+      if (error.message?.includes('rate limit') || error.status === 429) {
+        return { error: 'Too many signup attempts. Please wait a few minutes and try again.' };
+      }
+      if (error.message?.includes('already registered')) {
+        return { error: 'This email is already registered. Please sign in instead.' };
+      }
+      return { error: error.message || 'Signup failed. Please try again.' };
+    }
+
+    if (!data.user) return { error: 'Signup failed. Please try again.' };
+
+    // Check if user already exists (empty identities = existing user)
+    if (data.user.identities?.length === 0) {
+      return { error: 'This email is already registered. Please sign in instead.' };
+    }
 
     // Create organization
     const { data: org } = await supabase.from('organizations').insert({ name: orgName, owner_id: data.user.id, plan: 'starter' }).select().single();
@@ -124,7 +190,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    if (!DEV_MOCK_AUTH) await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
     setProfile(null);
     setOrganization(null);
   };

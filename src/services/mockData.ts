@@ -1,4 +1,4 @@
-import { Submission, ApprovalLevel, ApprovalEntry, OverallStatus, ApprovalLevelStats, DepartmentStats, TrendDataPoint, BottleneckData } from '../types';
+import { Submission, ApprovalLevel, ApprovalEntry, OverallStatus, ApprovalLevelStats, DepartmentStats, TrendDataPoint, BottleneckData, SidebarCategory, AutoApproveRule } from '../types';
 
 const DEPARTMENTS = ['Finance', 'HR', 'Procurement', 'IT', 'Operations', 'Legal', 'Admin', 'Marketing'];
 
@@ -38,7 +38,7 @@ const NAMES = [
   { en: 'Moza Al Nahyan', ar: 'موزة آل نهيان' },
 ];
 
-const APPROVERS = [
+export const APPROVERS = [
   { en: 'Director Ahmad Rashid', ar: 'المدير أحمد راشد' },
   { en: 'Manager Fatima Hassan', ar: 'المديرة فاطمة حسن' },
   { en: 'VP Mohammed Al Falasi', ar: 'نائب الرئيس محمد الفلاسي' },
@@ -288,3 +288,46 @@ export function getHeatmapData(submissions: Submission[]): HeatmapCell[] {
   });
   return cells;
 }
+
+export const SIDEBAR_CATEGORIES: SidebarCategory[] = [
+  { id: 'all', label: 'All Assets', type: 'all' },
+  {
+    id: 'procurement', label: 'Procurement', type: 'department',
+    filter: { departments: ['Procurement'] },
+    children: [
+      { id: 'cf-process', label: 'CF Process', type: 'form-group', filter: { formIds: ['F001', 'F005'] } },
+      { id: 'cash-advance', label: 'Cash Advance', type: 'form-group', filter: { formIds: ['F009'] } },
+    ],
+  },
+  { id: 'finance', label: 'Finance', type: 'department', filter: { departments: ['Finance'] } },
+  { id: 'hr', label: 'HR', type: 'department', filter: { departments: ['HR'] } },
+  { id: 'it', label: 'IT', type: 'department', filter: { departments: ['IT'] } },
+  { id: 'operations', label: 'Operations', type: 'department', filter: { departments: ['Operations'] } },
+  { id: 'legal', label: 'Legal', type: 'department', filter: { departments: ['Legal'] } },
+  { id: 'admin', label: 'Admin', type: 'department', filter: { departments: ['Admin'] } },
+  { id: 'marketing', label: 'Marketing', type: 'department', filter: { departments: ['Marketing'] } },
+];
+
+export const DEFAULT_AUTO_APPROVE_RULES: AutoApproveRule[] = [
+  {
+    id: 'rule-1',
+    name: 'Auto-approve low priority leave requests',
+    enabled: false,
+    conditions: { formTypes: ['F002'], maxPriority: 'low', approvalLevels: [1, 2] },
+    action: 'approve',
+  },
+  {
+    id: 'rule-2',
+    name: 'Auto-approve facility maintenance under 3 days',
+    enabled: false,
+    conditions: { formTypes: ['F010'], maxDaysAtLevel: 3, approvalLevels: [1] },
+    action: 'approve',
+  },
+  {
+    id: 'rule-3',
+    name: 'Auto-escalate forms stuck over 30 days',
+    enabled: false,
+    conditions: { maxDaysAtLevel: 30 },
+    action: 'escalate',
+  },
+];

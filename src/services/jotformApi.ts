@@ -1,4 +1,4 @@
-import { ApiConfig, Submission } from '../types';
+import { ApiConfig, Submission, DiscoveredForm } from '../types';
 
 const DEFAULT_BASE_URL = 'https://api.jotform.com';
 
@@ -97,7 +97,6 @@ class JotFormApiService {
   }
 
   parseSubmissionToModel(raw: Record<string, unknown>): Partial<Submission> {
-    // This will need customization based on the actual form structure
     const answers = raw.answers as Record<string, { answer: string; prettyFormat?: string; text?: string }> || {};
     const answerMap: Record<string, string> = {};
     Object.values(answers).forEach((a) => {
@@ -111,6 +110,61 @@ class JotFormApiService {
       submissionDate: raw.created_at as string,
       answers: answerMap,
     };
+  }
+
+  async autoDiscoverForms(): Promise<{ forms: DiscoveredForm[]; error?: string }> {
+    if (!this.config.apiKey) {
+      return { forms: [], error: 'No API key configured' };
+    }
+    try {
+      const response = await fetch(
+        `${this.config.baseUrl}/user/forms?apiKey=${this.config.apiKey}&limit=1000&orderby=created_at`
+      );
+      if (!response.ok) {
+        return { forms: [], error: `API returned ${response.status}` };
+      }
+      const data = await response.json();
+      const content = data.content || [];
+
+      const forms: DiscoveredForm[] = content.map((f: Record<string, unknown>) => ({
+        id: String(f.id),
+        title: String(f.title || 'Untitled Form'),
+        count: Number(f.count || 0),
+        status: String(f.status || 'ENABLED'),
+        created_at: String(f.created_at || ''),
+      }));
+
+      // Auto-populate formIds with all discovered form IDs
+      const formIds = forms.map(f => f.id);
+      this.updateConfig({ formIds, isConnected: true });
+
+      return { forms };
+    } catch (err) {
+      return { forms: [], error: `Discovery failed: ${(err as Error).message}` };
+    }
+  }
+
+  async fetchAllSubmissions(): Promise<{ submissions: Partial<Submission>[]; error?: string }> {
+    if (!this.config.apiKey || this.config.formIds.length === 0) {
+      return { submissions: [], error: 'No API key or forms configured' };
+    }
+
+    try {
+      const allSubs: Partial<Submission>[] = [];
+
+      for (const formId of this.config.formIds) {
+        const rawSubs = await this.getFormSubmissions(formId);
+        const parsed = (rawSubs as Record<string, unknown>[]).map(raw => ({
+          ...this.parseSubmissionToModel(raw),
+          formId,
+        }));
+        allSubs.push(...parsed);
+      }
+
+      return { submissions: allSubs };
+    } catch (err) {
+      return { submissions: [], error: `Fetch failed: ${(err as Error).message}` };
+    }
   }
 }
 
