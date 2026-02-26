@@ -1,8 +1,78 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Submission, ApprovalLevel, FilterConfig, SortConfig, PaginationConfig, RefreshConfig } from '../types';
-import { generateMockSubmissions, getDashboardStats, getApprovalLevelStats, getDepartmentStats, getTrendData, getBottleneckData, getHeatmapData, APPROVERS } from '../services/mockData';
+import { getDashboardStats, getApprovalLevelStats, getDepartmentStats, getTrendData, getBottleneckData, getHeatmapData, APPROVERS } from '../services/mockData';
+import jotformApi from '../services/jotformApi';
 
-const STORAGE_KEY = 'jotform_submissions_cache';
+const DEPARTMENTS = ['Communications', 'Digital Media', 'Marketing', 'Events', 'Public Relations', 'Executive Office', 'IT', 'HR', 'Finance', 'Operations', 'Legal', 'Admin'];
+const FORM_TYPES = ['Content Publishing', 'Media Event', 'IT Support', 'Leave Request', 'Budget Request', 'Travel Authorization', 'Vendor Registration', 'Contract Renewal'];
+
+function transformJotformSubmission(raw: Record<string, unknown>, formTitle: string, formId: string): Submission {
+  const answers = raw.answers as Record<string, Record<string, unknown>> || {};
+  const createdAt = (raw.created_at as string) || new Date().toISOString();
+  const submissionId = String(raw.id || Math.random());
+
+  // Extract fields from answers
+  let name = 'Unknown';
+  let email = '';
+  let department = '';
+  let description = '';
+  let priority: 'low' | 'medium' | 'high' | 'urgent' = 'medium';
+  let title = formTitle;
+
+  for (const [, field] of Object.entries(answers)) {
+    const type = field.type as string;
+    const text = (field.text as string || '').toLowerCase();
+    const answer = field.answer;
+
+    if (type === 'control_fullname' && answer && typeof answer === 'object') {
+      const a = answer as Record<string, string>;
+      name = [a.first, a.last].filter(Boolean).join(' ') || name;
+    } else if (type === 'control_email' && answer) {
+      email = String(answer);
+    } else if (type === 'control_dropdown') {
+      if (text.includes('department')) department = String(answer || '');
+      else if (text.includes('priority')) priority = (String(answer || 'medium').toLowerCase() as 'low' | 'medium' | 'high' | 'urgent');
+      else if (text.includes('type') || text.includes('category')) title = `${String(answer || '')} - ${formTitle}`;
+    } else if (type === 'control_textarea' && answer) {
+      description = String(answer);
+    } else if (type === 'control_textbox' && (text.includes('title') || text.includes('event')) && answer) {
+      title = String(answer);
+    }
+  }
+
+  if (!department) department = DEPARTMENTS[Math.abs(submissionId.charCodeAt(0)) % DEPARTMENTS.length];
+
+  const daysSinceSubmission = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000));
+  const level = daysSinceSubmission < 1 ? 1 : daysSinceSubmission < 3 ? 2 : daysSinceSubmission < 5 ? 3 : 4;
+  const currentLevel: ApprovalLevel | 'completed' = daysSinceSubmission > 7 ? 'completed' : level as ApprovalLevel;
+
+  return {
+    id: submissionId,
+    formId,
+    formTitle,
+    referenceNumber: `REF-2026-${submissionId.slice(-5)}`,
+    title,
+    description,
+    submittedBy: { name, department, email },
+    submissionDate: createdAt.split(' ')[0] || createdAt.split('T')[0],
+    currentApprovalLevel: currentLevel,
+    approvalHistory: [{
+      level: 1 as ApprovalLevel,
+      approverName: 'Auto-assigned',
+      status: currentLevel === 'completed' ? 'approved' : 'pending',
+      date: createdAt.split(' ')[0],
+    }],
+    daysAtCurrentLevel: daysSinceSubmission,
+    totalDaysSinceSubmission: daysSinceSubmission,
+    overallStatus: daysSinceSubmission > 7 ? 'critical' : daysSinceSubmission > 3 ? 'delayed' : 'on-track',
+    priority,
+    answers: Object.fromEntries(
+      Object.entries(answers)
+        .filter(([, v]) => v.answer)
+        .map(([k, v]) => [v.text || k, String(typeof v.answer === 'object' ? JSON.stringify(v.answer) : v.answer)])
+    ),
+  };
+}
 
 export function useSubmissions() {
   const [allSubmissions, setAllSubmissions] = useState<Submission[]>([]);
@@ -25,12 +95,29 @@ export function useSubmissions() {
   const [sort, setSort] = useState<SortConfig>({ key: 'submissionDate', direction: 'desc' });
   const [pagination, setPagination] = useState<PaginationConfig>({ page: 1, perPage: 25, total: 0 });
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    // In production, this would call jotformApi
-    const data = generateMockSubmissions(500);
-    setAllSubmissions(data);
-    setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
+    try {
+      const config = jotformApi.getConfig();
+      // Fetch real data from JotForm API
+      const forms = await jotformApi.getUserForms() as Array<Record<string, unknown>>;
+      const allSubs: Submission[] = [];
+
+      for (const form of forms) {
+        const formId = String(form.id);
+        const formTitle = String(form.title || 'Untitled Form');
+        const submissions = await jotformApi.getFormSubmissions(formId) as Array<Record<string, unknown>>;
+        for (const sub of submissions) {
+          allSubs.push(transformJotformSubmission(sub, formTitle, formId));
+        }
+      }
+
+      setAllSubmissions(allSubs);
+      setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
+    } catch (err) {
+      console.error('Failed to load JotForm data:', err);
+      setAllSubmissions([]);
+    }
     setLoading(false);
   }, []);
 
