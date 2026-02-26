@@ -103,6 +103,29 @@ class JotFormApiService {
     return data.content;
   }
 
+  async updateSubmission(submissionId: string, fields: Record<string, string>): Promise<{ success: boolean; message: string }> {
+    try {
+      const params = new URLSearchParams();
+      for (const [key, val] of Object.entries(fields)) {
+        params.append(`submission[${key}]`, val);
+      }
+      const response = await fetch(`/api/jotform-update?submissionId=${submissionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+      });
+      const data = await response.json();
+      if (data.responseCode === 200) {
+        // Clear cache for this submission
+        this.cache.delete(`submission_${submissionId}`);
+        return { success: true, message: 'Updated successfully' };
+      }
+      return { success: false, message: data.message || 'Update failed' };
+    } catch (err) {
+      return { success: false, message: `Error: ${(err as Error).message}` };
+    }
+  }
+
   parseSubmissionToModel(raw: Record<string, unknown>): Partial<Submission> {
     const answers = raw.answers as Record<string, { answer: string; prettyFormat?: string; text?: string }> || {};
     const answerMap: Record<string, string> = {};

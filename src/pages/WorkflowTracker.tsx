@@ -268,7 +268,7 @@ export default function WorkflowTracker({ data }: Props) {
         </div>
       </div>
 
-      <SubmissionModal submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} />
+      <SubmissionModal submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} onUpdate={() => { setSelectedSubmission(null); window.location.reload(); }} />
     </div>
   );
 }
