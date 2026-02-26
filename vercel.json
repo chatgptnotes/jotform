@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/jotform/:path*", "destination": "/api/jotform/:path*" },
+    { "source": "/((?!api).*)", "destination": "/index.html" }
+  ]
+}

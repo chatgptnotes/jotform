@@ -1,6 +1,7 @@
 import { ApiConfig, Submission, DiscoveredForm } from '../types';
 
-const DEFAULT_BASE_URL = 'https://eforms.mediaoffice.ae/API';
+// Use local proxy to avoid CORS issues with enterprise JotForm API
+const DEFAULT_BASE_URL = '/api/jotform';
 const DEFAULT_API_KEY = 'af7787b0b077e0e60e89f9d1fa6101e8';
 
 class JotFormApiService {
