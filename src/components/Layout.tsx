@@ -253,7 +253,7 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
       )}
 
       {/* Main */}
-      <div className="flex-1 lg:ml-72">
+      <div className="flex-1 lg:ml-72 h-screen overflow-y-auto">
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-navy-dark/80 backdrop-blur-xl border-b border-navy-light/10">
           <div className="flex items-center justify-between px-6 py-4">

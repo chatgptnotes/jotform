@@ -174,7 +174,7 @@ export function useSubmissions() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const config = jotformApi.getConfig();
+      jotformApi.clearCache();
       // Fetch real data from JotForm API
       const forms = await jotformApi.getUserForms() as Array<Record<string, unknown>>;
       const allSubs: Submission[] = [];
