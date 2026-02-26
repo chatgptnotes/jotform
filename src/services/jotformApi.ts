@@ -45,12 +45,17 @@ class JotFormApiService {
     this.cache.clear();
   }
 
+  private buildUrl(path: string, extra: Record<string, string> = {}): string {
+    const params = new URLSearchParams({ path, ...extra });
+    return `/api/jotform?${params.toString()}`;
+  }
+
   async testConnection(): Promise<{ success: boolean; message: string; formCount?: number }> {
     if (!this.config.apiKey) {
       return { success: false, message: 'No API key configured' };
     }
     try {
-      const response = await fetch(`${this.config.baseUrl}/user/forms?apiKey=${this.config.apiKey}&limit=1`);
+      const response = await fetch(this.buildUrl('user/forms', { limit: '1' }));
       if (!response.ok) {
         return { success: false, message: `API returned ${response.status}` };
       }
@@ -66,7 +71,7 @@ class JotFormApiService {
     const cached = this.getCached<unknown[]>('user_forms');
     if (cached) return cached;
 
-    const response = await fetch(`${this.config.baseUrl}/user/forms?apiKey=${this.config.apiKey}&limit=1000`);
+    const response = await fetch(this.buildUrl('user/forms', { limit: '1000' }));
     const data = await response.json();
     this.setCache('user_forms', data.content);
     return data.content || [];
@@ -78,7 +83,7 @@ class JotFormApiService {
     if (cached) return cached;
 
     const response = await fetch(
-      `${this.config.baseUrl}/form/${formId}/submissions?apiKey=${this.config.apiKey}&offset=${offset}&limit=${limit}`
+      this.buildUrl(`form/${formId}/submissions`, { offset: String(offset), limit: String(limit) })
     );
     const data = await response.json();
     this.setCache(cacheKey, data.content);
@@ -91,7 +96,7 @@ class JotFormApiService {
     if (cached) return cached;
 
     const response = await fetch(
-      `${this.config.baseUrl}/submission/${submissionId}?apiKey=${this.config.apiKey}`
+      this.buildUrl(`submission/${submissionId}`)
     );
     const data = await response.json();
     this.setCache(cacheKey, data.content);
@@ -120,7 +125,7 @@ class JotFormApiService {
     }
     try {
       const response = await fetch(
-        `${this.config.baseUrl}/user/forms?apiKey=${this.config.apiKey}&limit=1000&orderby=created_at`
+        this.buildUrl("user/forms", { limit: "1000", orderby: "created_at" })
       );
       if (!response.ok) {
         return { forms: [], error: `API returned ${response.status}` };
