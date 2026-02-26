@@ -35,16 +35,18 @@ function transformJotformSubmission(raw: Record<string, unknown>, formTitle: str
     } else if (type === 'control_email' && answer) {
       email = String(answer);
     } else if (type === 'control_dropdown') {
-      if (textLower.includes('department')) department = String(answer || '');
-      else if (textLower.includes('priority')) priority = (String(answer || 'medium').toLowerCase() as 'low' | 'medium' | 'high' | 'urgent');
-      else if (textLower.includes('overall status') && answer) overallStatus = String(answer);
-      else if (textLower.match(/level\s*(\d)/)) {
-        const match = textLower.match(/level\s*(\d)/);
-        if (match) {
-          const lvl = parseInt(match[1]);
-          if (!levelApprovals[lvl]) levelApprovals[lvl] = { status: '', approver: '' };
-          levelApprovals[lvl].status = String(answer || 'Pending');
-        }
+      // Check level approval FIRST (before department, since "Level 1 - Department Head" contains "department")
+      const levelMatch = textLower.match(/level\s*(\d)/);
+      if (levelMatch && (textLower.includes('approval') || textLower.includes('status'))) {
+        const lvl = parseInt(levelMatch[1]);
+        if (!levelApprovals[lvl]) levelApprovals[lvl] = { status: '', approver: '' };
+        levelApprovals[lvl].status = String(answer || 'Pending');
+      } else if (textLower === 'department' || (textLower.includes('department') && !textLower.includes('level'))) {
+        department = String(answer || '');
+      } else if (textLower.includes('priority')) {
+        priority = (String(answer || 'medium').toLowerCase() as 'low' | 'medium' | 'high' | 'urgent');
+      } else if (textLower.includes('overall status') && answer) {
+        overallStatus = String(answer);
       } else if (textLower.includes('type') || textLower.includes('category')) {
         title = `${String(answer || '')} - ${formTitle}`;
       }
