@@ -49,15 +49,7 @@ function ProtectedApp() {
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-navy-dark flex items-center justify-center">
-        <Loader2 className="w-10 h-10 text-gold animate-spin" />
-      </div>
-    );
-  }
-  if (!user) return <Navigate to="/login" replace />;
+  // AUTH TEMPORARILY DISABLED — remove this bypass to re-enable
   return <>{children}</>;
 }
 
@@ -74,7 +66,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={user ? <Navigate to="/app" replace /> : <LandingPage />} />
+      <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="/login" element={user ? <Navigate to="/app" replace /> : <Login />} />
       <Route path="/signup" element={user ? <Navigate to="/app" replace /> : <Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
