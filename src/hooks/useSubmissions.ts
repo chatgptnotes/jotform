@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Submission, ApprovalLevel, FilterConfig, SortConfig, PaginationConfig, RefreshConfig } from '../types';
-import { getDashboardStats, getApprovalLevelStats, getDepartmentStats, getTrendData, getBottleneckData, getHeatmapData, APPROVERS } from '../services/mockData';
+import { getDashboardStats, getApprovalLevelStats, getDepartmentStats, getTrendData, getBottleneckData, getHeatmapData, APPROVERS, LEVEL_APPROVERS } from '../services/mockData';
 import jotformApi from '../services/jotformApi';
 
 const DEPARTMENTS = ['Communications', 'Digital Media', 'Marketing', 'Events', 'Public Relations', 'Executive Office', 'IT', 'HR', 'Finance', 'Operations', 'Legal', 'Admin'];
@@ -97,7 +97,7 @@ function transformJotformSubmission(raw: Record<string, unknown>, formTitle: str
         rejected = true;
         break;
       } else {
-        approvalHistory.push({ level: lvl as ApprovalLevel, approverName: approverName || 'Pending Assignment', status: 'pending' });
+        approvalHistory.push({ level: lvl as ApprovalLevel, approverName: approverName || LEVEL_APPROVERS[lvl]?.en || 'Pending Assignment', status: 'pending' });
         break;
       }
     }
@@ -115,7 +115,7 @@ function transformJotformSubmission(raw: Record<string, unknown>, formTitle: str
     currentLevel = daysSinceSubmission > 7 ? 'completed' : level as ApprovalLevel;
     approvalHistory.push({
       level: 1 as ApprovalLevel,
-      approverName: 'Auto-assigned',
+      approverName: LEVEL_APPROVERS[level]?.en || 'Auto-assigned',
       status: currentLevel === 'completed' ? 'approved' : 'pending',
       date: createdAt.split(' ')[0],
     });
@@ -279,7 +279,7 @@ export function useSubmissions() {
       );
 
       if (typeof newLevel === 'number') {
-        const nextApprover = APPROVERS[((newLevel - 1) * 2) % APPROVERS.length];
+        const nextApprover = LEVEL_APPROVERS[newLevel as number] || APPROVERS[0];
         updatedHistory.push({
           level: newLevel,
           approverName: nextApprover?.en || 'Unknown',

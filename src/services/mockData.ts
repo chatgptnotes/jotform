@@ -38,15 +38,19 @@ const NAMES = [
   { en: 'Moza Al Nahyan', ar: 'موزة آل نهيان' },
 ];
 
+// Named approvers mapped to each approval level
+export const LEVEL_APPROVERS: Record<number, { en: string; ar: string; role: string; email: string }> = {
+  1: { en: 'Ahmad Al Rashid', ar: 'أحمد الراشد', role: 'Department Head', email: 'ahmad.rashid@mediaoffice.ae' },
+  2: { en: 'Fatima Al Hassan', ar: 'فاطمة الحسن', role: 'Division Manager', email: 'fatima.hassan@mediaoffice.ae' },
+  3: { en: 'Huzaifa Dawasaz', ar: 'حذيفة دواساز', role: 'Director', email: 'huzaifa.dawasaz@mediaoffice.ae' },
+  4: { en: 'Mohammed Al Falasi', ar: 'محمد الفلاسي', role: 'Executive Director', email: 'mohammed.falasi@mediaoffice.ae' },
+};
+
 export const APPROVERS = [
-  { en: 'Director Ahmad Rashid', ar: 'المدير أحمد راشد' },
-  { en: 'Manager Fatima Hassan', ar: 'المديرة فاطمة حسن' },
-  { en: 'VP Mohammed Al Falasi', ar: 'نائب الرئيس محمد الفلاسي' },
-  { en: 'CFO Khalid Sultan', ar: 'المدير المالي خالد سلطان' },
-  { en: 'Director Sara Al Nuaimi', ar: 'المديرة سارة النعيمي' },
-  { en: 'Manager Omar Al Ketbi', ar: 'المدير عمر الكتبي' },
-  { en: 'VP Noura Al Shamsi', ar: 'نائبة الرئيس نورة الشامسي' },
-  { en: 'CEO Rashid Al Maktoum', ar: 'الرئيس التنفيذي راشد آل مكتوم' },
+  { en: LEVEL_APPROVERS[1].en, ar: LEVEL_APPROVERS[1].ar },
+  { en: LEVEL_APPROVERS[2].en, ar: LEVEL_APPROVERS[2].ar },
+  { en: LEVEL_APPROVERS[3].en, ar: LEVEL_APPROVERS[3].ar },
+  { en: LEVEL_APPROVERS[4].en, ar: LEVEL_APPROVERS[4].ar },
 ];
 
 const DESCRIPTIONS: Record<string, string[]> = {
@@ -91,7 +95,7 @@ function generateApprovalHistory(
   const startDate = new Date(submissionDate);
 
   for (let i = 1; i <= 4; i++) {
-    const approver = APPROVERS[(i - 1) * 2] || randomChoice(APPROVERS);
+    const approver = LEVEL_APPROVERS[i];
     if (i < maxLevel || (currentLevel === 'completed' && i <= 4)) {
       startDate.setDate(startDate.getDate() + randomInt(1, 5));
       history.push({
@@ -198,10 +202,10 @@ export function getDashboardStats(submissions: Submission[]) {
 
 export function getApprovalLevelStats(submissions: Submission[]): ApprovalLevelStats[] {
   const levels = [
-    { key: 1, label: 'Level 1 - Department', color: '#3B82F6' },
-    { key: 2, label: 'Level 2 - Division', color: '#F59E0B' },
-    { key: 3, label: 'Level 3 - Director', color: '#8B5CF6' },
-    { key: 4, label: 'Level 4 - Executive', color: '#EF4444' },
+    { key: 1, label: `Level 1 - ${LEVEL_APPROVERS[1].role} (${LEVEL_APPROVERS[1].en})`, color: '#3B82F6' },
+    { key: 2, label: `Level 2 - ${LEVEL_APPROVERS[2].role} (${LEVEL_APPROVERS[2].en})`, color: '#F59E0B' },
+    { key: 3, label: `Level 3 - ${LEVEL_APPROVERS[3].role} (${LEVEL_APPROVERS[3].en})`, color: '#8B5CF6' },
+    { key: 4, label: `Level 4 - ${LEVEL_APPROVERS[4].role} (${LEVEL_APPROVERS[4].en})`, color: '#EF4444' },
     { key: 'completed', label: 'Completed', color: '#10B981' },
     { key: 'rejected', label: 'Rejected', color: '#6B7280' },
   ];

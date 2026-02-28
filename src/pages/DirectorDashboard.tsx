@@ -293,17 +293,17 @@ export default function DirectorDashboard({ data }: Props) {
                         {sub.referenceNumber.split('-').pop()}
                       </button>
                       <a
-                        href={`https://eforms.mediaoffice.ae/submission/${sub.id}`}
+                        href={`https://eforms.mediaoffice.ae/inbox/${sub.formId}/${sub.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[10px] text-gray-600 hover:text-gold flex items-center gap-0.5 mt-0.5"
                       >
-                        <ExternalLink className="w-2.5 h-2.5" /> JotForm
+                        <ExternalLink className="w-2.5 h-2.5" /> View in JotForm
                       </a>
                     </td>
                     <td className="px-4 py-3">
                       <a
-                        href={`https://eforms.mediaoffice.ae/${sub.formId}`}
+                        href={`https://eforms.mediaoffice.ae/inbox/${sub.formId}/${sub.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-white hover:text-gold hover:underline inline-flex items-center gap-1 group"
@@ -331,15 +331,15 @@ export default function DirectorDashboard({ data }: Props) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1.5">
-                        {/* View Form in JotForm Enterprise */}
+                        {/* View Filled Submission in JotForm Enterprise */}
                         <a
-                          href={`https://eforms.mediaoffice.ae/${sub.formId}`}
+                          href={`https://eforms.mediaoffice.ae/inbox/${sub.formId}/${sub.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-2.5 py-1.5 rounded-lg bg-navy-light/30 text-gray-300 hover:bg-navy-light/50 hover:text-white text-xs font-medium flex items-center gap-1 border border-navy-light/30 transition-colors"
-                          title="Open form in JotForm Enterprise"
+                          title="View filled submission in JotForm Enterprise"
                         >
-                          <ExternalLink className="w-3.5 h-3.5" /> View Form
+                          <ExternalLink className="w-3.5 h-3.5" /> View Submission
                         </a>
 
                         {/* Approve */}
