@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2, XCircle, MessageSquare, Clock, AlertTriangle, User,
   Search, ArrowUpDown, ChevronDown, ChevronUp, FileText, Loader2,
-  TrendingUp, Shield,
+  TrendingUp, Shield, ExternalLink,
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useSubmissions } from '../hooks/useSubmissions';
@@ -288,13 +288,29 @@ export default function DirectorDashboard({ data }: Props) {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => setSelectedSubmission(sub)}
-                        className="text-sm font-mono text-gold hover:underline"
+                        className="text-sm font-mono text-gold hover:underline block"
                       >
                         {sub.referenceNumber.split('-').pop()}
                       </button>
+                      <a
+                        href={`https://eforms.mediaoffice.ae/submission/${sub.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-gray-600 hover:text-gold flex items-center gap-0.5 mt-0.5"
+                      >
+                        <ExternalLink className="w-2.5 h-2.5" /> JotForm
+                      </a>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="text-sm text-white">{sub.title}</p>
+                      <a
+                        href={`https://eforms.mediaoffice.ae/${sub.formId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-white hover:text-gold hover:underline inline-flex items-center gap-1 group"
+                      >
+                        {sub.title}
+                        <ExternalLink className="w-3 h-3 text-gray-600 group-hover:text-gold transition-colors" />
+                      </a>
                       <p className="text-xs text-gray-500">{sub.formTitle}</p>
                     </td>
                     <td className="px-4 py-3">
@@ -315,11 +331,22 @@ export default function DirectorDashboard({ data }: Props) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1.5">
+                        {/* View Form in JotForm Enterprise */}
+                        <a
+                          href={`https://eforms.mediaoffice.ae/${sub.formId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1.5 rounded-lg bg-navy-light/30 text-gray-300 hover:bg-navy-light/50 hover:text-white text-xs font-medium flex items-center gap-1 border border-navy-light/30 transition-colors"
+                          title="Open form in JotForm Enterprise"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> View Form
+                        </a>
+
                         {/* Approve */}
                         <button
                           onClick={() => handleApprove(sub)}
                           className="px-2.5 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 text-xs font-medium flex items-center gap-1 transition-colors"
-                          title="Link for Approval"
+                          title="Approve this submission"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                         </button>
