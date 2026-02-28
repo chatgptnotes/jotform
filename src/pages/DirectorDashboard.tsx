@@ -10,6 +10,7 @@ import { useSubmissions } from '../hooks/useSubmissions';
 import { Submission } from '../types';
 import CommentPanel from '../components/CommentPanel';
 import SubmissionModal from '../components/SubmissionModal';
+import { CURRENT_USER } from '../config/currentUser';
 
 interface Props {
   data: ReturnType<typeof useSubmissions>;
@@ -83,11 +84,23 @@ export default function DirectorDashboard({ data }: Props) {
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
-  // Filter to only pending submissions
+  // Filter to only submissions pending the director's approval
   const directorSubmissions = useMemo(() => {
-    let subs = data.allSubmissions.filter(s =>
-      typeof s.currentApprovalLevel === 'number' && !dismissedIds.has(s.id)
-    );
+    let subs = data.allSubmissions.filter(s => {
+      if (dismissedIds.has(s.id)) return false;
+      if (typeof s.currentApprovalLevel !== 'number') return false;
+
+      // Check if submission is at the director's approval level
+      const atDirectorLevel = CURRENT_USER.approvalLevels.includes(s.currentApprovalLevel as number);
+
+      // Check if the pending approver name matches the director
+      const pendingEntry = s.approvalHistory.find(a => a.status === 'pending');
+      const nameMatch = pendingEntry
+        ? CURRENT_USER.nameMatches.some(m => pendingEntry.approverName.toLowerCase().includes(m))
+        : false;
+
+      return atDirectorLevel || nameMatch;
+    });
 
     // Apply sidebar category filter
     if (activeSidebarCategory?.filter?.departments?.length) {
@@ -156,14 +169,30 @@ export default function DirectorDashboard({ data }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <h2 className="text-2xl font-bold text-white">Director's Dashboard</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          {activeSidebarCategory?.label && activeSidebarCategory.id !== 'all'
-            ? `Showing: ${activeSidebarCategory.label}`
-            : 'All pending approvals requiring your action'}
-        </p>
+      {/* Welcome Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-5 border border-gold/20 bg-gradient-to-r from-gold/5 to-transparent"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white">
+              Welcome, {CURRENT_USER.name} — <span className="text-gold capitalize">{CURRENT_USER.role}</span>
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
+              {directorSubmissions.length > 0
+                ? `Showing ${directorSubmissions.length} form${directorSubmissions.length !== 1 ? 's' : ''} pending your approval`
+                : 'No forms pending your approval — all caught up!'}
+            </p>
+            {activeSidebarCategory?.label && activeSidebarCategory.id !== 'all' && (
+              <p className="text-xs text-gray-500 mt-0.5">Filter: {activeSidebarCategory.label}</p>
+            )}
+          </div>
+          <div className="w-12 h-12 rounded-full bg-gold/20 flex items-center justify-center">
+            <User className="w-6 h-6 text-gold" />
+          </div>
+        </div>
       </motion.div>
 
       {/* Stat Cards */}

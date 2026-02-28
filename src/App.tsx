@@ -29,7 +29,7 @@ function ProtectedApp() {
   return (
     <Layout refreshConfig={data.refreshConfig} setRefreshConfig={data.setRefreshConfig} onRefresh={data.refresh}>
       <Routes>
-        <Route path="/" element={<Dashboard data={data} />} />
+        <Route path="/" element={<DirectorDashboard data={data} />} />
         <Route path="/tracker" element={<WorkflowTracker data={data} />} />
         <Route path="/bottlenecks" element={<BottleneckAnalysis data={data} />} />
         <Route path="/approval/:level" element={<ApprovalDetail data={data} />} />
