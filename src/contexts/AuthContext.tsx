@@ -43,13 +43,14 @@ interface AuthContextType {
   hasPermission: (required: OrgRole[]) => boolean;
 }
 
-const DEV_MOCK_AUTH = import.meta.env.VITE_DEV_MOCK_AUTH === 'true';
+// DEMO MODE: Always show as Director Huzaifa Dawasaz (Dubai Media Office)
+const DEV_MOCK_AUTH = true;
 
 const MOCK_USER = {
-  id: 'mock-user-001',
-  email: 'bhupendrabalapure@gmail.com',
+  id: 'director-huzaifa',
+  email: 'huzaifa.dawasaz@mediaoffice.ae',
   app_metadata: {},
-  user_metadata: { full_name: 'Bhupendra Balapure' },
+  user_metadata: { full_name: 'Huzaifa Dawasaz' },
   aud: 'authenticated',
   created_at: '2024-01-01T00:00:00Z',
 } as unknown as User;
@@ -64,23 +65,23 @@ const MOCK_SESSION = {
 } as unknown as Session;
 
 const MOCK_PROFILE: Profile = {
-  id: 'mock-profile-001',
-  user_id: 'mock-user-001',
-  full_name: 'Bhupendra Balapure',
-  department: 'IT',
-  role: 'super_admin',
+  id: 'profile-director',
+  user_id: 'director-huzaifa',
+  full_name: 'Huzaifa Dawasaz',
+  department: 'Media Operations',
+  role: 'approver',
   avatar_url: '',
-  org_id: 'mock-org-001',
+  org_id: 'org-mediaoffice',
   preferences: { theme: 'dark', language: 'en' },
 };
 
 const MOCK_ORG: Organization = {
-  id: 'mock-org-001',
-  name: 'Bhupendea',
+  id: 'org-mediaoffice',
+  name: 'Dubai Media Office',
   logo_url: null,
   branding: {},
-  owner_id: 'mock-user-001',
-  plan: 'starter',
+  owner_id: 'director-huzaifa',
+  plan: 'enterprise',
   created_at: '2024-01-01T00:00:00Z',
 };
 
@@ -108,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (DEV_MOCK_AUTH) return; // Skip real auth in mock mode
+    if (DEV_MOCK_AUTH) return; // Skip real auth in mock mode — demo as Director Huzaifa Dawasaz
 
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);

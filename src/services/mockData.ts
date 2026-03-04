@@ -1,4 +1,4 @@
-import { Submission, ApprovalLevel, ApprovalEntry, OverallStatus, ApprovalLevelStats, DepartmentStats, TrendDataPoint, BottleneckData, SidebarCategory, AutoApproveRule } from '../types';
+import { Submission, ApprovalLevel, ApprovalEntry, OverallStatus, ApprovalLevelStats, DepartmentStats, TrendDataPoint, BottleneckData } from '../types';
 
 const DEPARTMENTS = ['Finance', 'HR', 'Procurement', 'IT', 'Operations', 'Legal', 'Admin', 'Marketing'];
 
@@ -38,19 +38,15 @@ const NAMES = [
   { en: 'Moza Al Nahyan', ar: 'موزة آل نهيان' },
 ];
 
-// Named approvers mapped to each approval level
-export const LEVEL_APPROVERS: Record<number, { en: string; ar: string; role: string; email: string }> = {
-  1: { en: 'Ahmad Al Rashid', ar: 'أحمد الراشد', role: 'Department Head', email: 'ahmad.rashid@mediaoffice.ae' },
-  2: { en: 'Fatima Al Hassan', ar: 'فاطمة الحسن', role: 'Division Manager', email: 'fatima.hassan@mediaoffice.ae' },
-  3: { en: 'Huzaifa Dawasaz', ar: 'حذيفة دواساز', role: 'Director', email: 'huzaifa.dawasaz@mediaoffice.ae' },
-  4: { en: 'Mohammed Al Falasi', ar: 'محمد الفلاسي', role: 'Executive Director', email: 'mohammed.falasi@mediaoffice.ae' },
-};
-
-export const APPROVERS = [
-  { en: LEVEL_APPROVERS[1].en, ar: LEVEL_APPROVERS[1].ar },
-  { en: LEVEL_APPROVERS[2].en, ar: LEVEL_APPROVERS[2].ar },
-  { en: LEVEL_APPROVERS[3].en, ar: LEVEL_APPROVERS[3].ar },
-  { en: LEVEL_APPROVERS[4].en, ar: LEVEL_APPROVERS[4].ar },
+const APPROVERS = [
+  { en: 'Director Huzaifa Dawasaz', ar: 'المدير حذيفة داواساز' },
+  { en: 'Manager Fatima Hassan', ar: 'المديرة فاطمة حسن' },
+  { en: 'VP Mohammed Al Falasi', ar: 'نائب الرئيس محمد الفلاسي' },
+  { en: 'CFO Khalid Sultan', ar: 'المدير المالي خالد سلطان' },
+  { en: 'Director Huzaifa Dawasaz', ar: 'المدير حذيفة داواساز' },
+  { en: 'Manager Omar Al Ketbi', ar: 'المدير عمر الكتبي' },
+  { en: 'VP Noura Al Shamsi', ar: 'نائبة الرئيس نورة الشامسي' },
+  { en: 'CEO Rashid Al Maktoum', ar: 'الرئيس التنفيذي راشد آل مكتوم' },
 ];
 
 const DESCRIPTIONS: Record<string, string[]> = {
@@ -95,7 +91,7 @@ function generateApprovalHistory(
   const startDate = new Date(submissionDate);
 
   for (let i = 1; i <= 4; i++) {
-    const approver = LEVEL_APPROVERS[i];
+    const approver = APPROVERS[(i - 1) * 2] || randomChoice(APPROVERS);
     if (i < maxLevel || (currentLevel === 'completed' && i <= 4)) {
       startDate.setDate(startDate.getDate() + randomInt(1, 5));
       history.push({
@@ -202,10 +198,10 @@ export function getDashboardStats(submissions: Submission[]) {
 
 export function getApprovalLevelStats(submissions: Submission[]): ApprovalLevelStats[] {
   const levels = [
-    { key: 1, label: `Level 1 - ${LEVEL_APPROVERS[1].role} (${LEVEL_APPROVERS[1].en})`, color: '#3B82F6' },
-    { key: 2, label: `Level 2 - ${LEVEL_APPROVERS[2].role} (${LEVEL_APPROVERS[2].en})`, color: '#F59E0B' },
-    { key: 3, label: `Level 3 - ${LEVEL_APPROVERS[3].role} (${LEVEL_APPROVERS[3].en})`, color: '#8B5CF6' },
-    { key: 4, label: `Level 4 - ${LEVEL_APPROVERS[4].role} (${LEVEL_APPROVERS[4].en})`, color: '#EF4444' },
+    { key: 1, label: 'Level 1 - Department', color: '#3B82F6' },
+    { key: 2, label: 'Level 2 - Division', color: '#F59E0B' },
+    { key: 3, label: 'Level 3 - Director', color: '#8B5CF6' },
+    { key: 4, label: 'Level 4 - Executive', color: '#EF4444' },
     { key: 'completed', label: 'Completed', color: '#10B981' },
     { key: 'rejected', label: 'Rejected', color: '#6B7280' },
   ];
@@ -292,46 +288,3 @@ export function getHeatmapData(submissions: Submission[]): HeatmapCell[] {
   });
   return cells;
 }
-
-export const SIDEBAR_CATEGORIES: SidebarCategory[] = [
-  { id: 'all', label: 'All Assets', type: 'all' },
-  {
-    id: 'procurement', label: 'Procurement', type: 'department',
-    filter: { departments: ['Procurement'] },
-    children: [
-      { id: 'cf-process', label: 'CF Process', type: 'form-group', filter: { formIds: ['F001', 'F005'] } },
-      { id: 'cash-advance', label: 'Cash Advance', type: 'form-group', filter: { formIds: ['F009'] } },
-    ],
-  },
-  { id: 'finance', label: 'Finance', type: 'department', filter: { departments: ['Finance'] } },
-  { id: 'hr', label: 'HR', type: 'department', filter: { departments: ['HR'] } },
-  { id: 'it', label: 'IT', type: 'department', filter: { departments: ['IT'] } },
-  { id: 'operations', label: 'Operations', type: 'department', filter: { departments: ['Operations'] } },
-  { id: 'legal', label: 'Legal', type: 'department', filter: { departments: ['Legal'] } },
-  { id: 'admin', label: 'Admin', type: 'department', filter: { departments: ['Admin'] } },
-  { id: 'marketing', label: 'Marketing', type: 'department', filter: { departments: ['Marketing'] } },
-];
-
-export const DEFAULT_AUTO_APPROVE_RULES: AutoApproveRule[] = [
-  {
-    id: 'rule-1',
-    name: 'Auto-approve low priority leave requests',
-    enabled: false,
-    conditions: { formTypes: ['F002'], maxPriority: 'low', approvalLevels: [1, 2] },
-    action: 'approve',
-  },
-  {
-    id: 'rule-2',
-    name: 'Auto-approve facility maintenance under 3 days',
-    enabled: false,
-    conditions: { formTypes: ['F010'], maxDaysAtLevel: 3, approvalLevels: [1] },
-    action: 'approve',
-  },
-  {
-    id: 'rule-3',
-    name: 'Auto-escalate forms stuck over 30 days',
-    enabled: false,
-    conditions: { maxDaysAtLevel: 30 },
-    action: 'escalate',
-  },
-];

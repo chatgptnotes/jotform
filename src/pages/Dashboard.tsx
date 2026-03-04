@@ -1,190 +1,276 @@
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from 'recharts';
-import { FileText, CheckCircle2, Clock, AlertTriangle, AlertOctagon, Download, Loader2 } from 'lucide-react';
-import StatCard from '../components/StatCard';
-import { exportChartAsPng } from '../services/exportService';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle2, XCircle, Clock, AlertTriangle, User, Building2, Calendar, Loader2, ChevronRight, Mail, Shield } from 'lucide-react';
+import SubmissionModal from '../components/SubmissionModal';
+import { Submission } from '../types';
+
+// ── Director context (hardcoded for demo) ───────────────────────────────────
+const DIRECTOR = {
+  name: 'Huzaifa Dawasaz',
+  email: 'huzaifa.dawasaz@mediaoffice.ae',
+  title: 'Director',
+  approvalLevel: 3,
+};
 
 interface Props {
   data: ReturnType<typeof import('../hooks/useSubmissions').useSubmissions>;
 }
 
 export default function Dashboard({ data }: Props) {
-  const navigate = useNavigate();
-  const { stats, approvalStats, departmentStats, trendData, loading, refreshConfig } = data;
+  const { allSubmissions, loading } = data;
+
+  // Only show submissions pending at the director's approval level
+  const pendingSubmissions = allSubmissions.filter(
+    s => s.currentApprovalLevel === DIRECTOR.approvalLevel
+  ).sort((a, b) => b.daysAtCurrentLevel - a.daysAtCurrentLevel);
+
+  const [decisions, setDecisions] = useState<Record<string, 'approved' | 'rejected'>>({});
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="text-center space-y-4">
           <Loader2 className="w-10 h-10 text-gold animate-spin mx-auto" />
-          <p className="text-gray-400 text-sm">Loading dashboard data...</p>
+          <p className="text-gray-400 text-sm">Loading your approval queue...</p>
         </div>
       </div>
     );
   }
 
-  const CHART_COLORS = ['#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444', '#10B981', '#6B7280'];
+  const pending = pendingSubmissions.filter(s => !decisions[s.id]);
+  const critical = pending.filter(s => s.daysAtCurrentLevel > 7);
+  const avgDays = pending.length > 0
+    ? Math.round(pending.reduce((sum, s) => sum + s.daysAtCurrentLevel, 0) / pending.length)
+    : 0;
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="glass-card p-3 text-sm">
-        <p className="text-gray-400 mb-1">{label}</p>
-        {payload.map((p: any, i: number) => (
-          <p key={i} style={{ color: p.color }} className="font-medium">{p.name}: {p.value}</p>
-        ))}
-      </div>
-    );
+  const handleDecision = async (id: string, decision: 'approved' | 'rejected') => {
+    setActionLoading(id);
+    // Simulate API call (in production: call JotForm API to push decision)
+    await new Promise(resolve => setTimeout(resolve, 700));
+    setDecisions(prev => ({ ...prev, [id]: decision }));
+    setActionLoading(null);
+  };
+
+  const priorityColor = (days: number) => {
+    if (days > 14) return 'text-red-400';
+    if (days > 7) return 'text-amber-400';
+    return 'text-white';
+  };
+
+  const priorityBadge = (days: number) => {
+    if (days > 14) return { label: 'Critical', cls: 'bg-red-500/20 text-red-400 border border-red-500/30' };
+    if (days > 7) return { label: 'Delayed', cls: 'bg-amber-500/20 text-amber-400 border border-amber-500/30' };
+    return { label: 'On Track', cls: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' };
   };
 
   return (
     <div className="space-y-6">
-      {/* Last Updated */}
-      {refreshConfig.lastUpdated && (
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Clock className="w-3.5 h-3.5" />
-          <span>Last updated: {new Date(refreshConfig.lastUpdated).toLocaleString()}</span>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard title="Total Forms" value={stats.totalForms} icon={FileText} color="gold" delay={0} onClick={() => navigate('/app/tracker')} />
-        <StatCard title="Completed" value={stats.completed} icon={CheckCircle2} color="emerald" delay={0.1} onClick={() => navigate('/app/tracker')} />
-        <StatCard title="In Progress" value={stats.inProgress} icon={Clock} color="blue" delay={0.2} onClick={() => navigate('/app/tracker')} />
-        <StatCard title="Stuck > 7 Days" value={stats.stuckOver7Days} icon={AlertTriangle} color="amber" delay={0.3} onClick={() => navigate('/app/bottlenecks')} />
-        <StatCard title="Stuck > 30 Days" value={stats.stuckOver30Days} icon={AlertOctagon} color="red" delay={0.4} onClick={() => navigate('/app/bottlenecks')} />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Donut Chart */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="glass-card p-6"
-          id="approval-distribution-chart"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Distribution by Approval Level</h3>
-            <button onClick={() => exportChartAsPng('approval-distribution-chart', 'approval-distribution')} className="p-1.5 rounded-lg hover:bg-navy-light/30 text-gray-500 hover:text-gold">
-              <Download className="w-4 h-4" />
-            </button>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={approvalStats}
-                cx="50%"
-                cy="50%"
-                innerRadius={70}
-                outerRadius={110}
-                paddingAngle={3}
-                dataKey="count"
-                nameKey="level"
-                onClick={(_, i) => {
-                  const level = approvalStats[i]?.level;
-                  if (level?.startsWith('Level')) navigate(`/approval/${level.split(' ')[1]}`);
-                }}
-                className="cursor-pointer"
-              >
-                {approvalStats.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i]} stroke="transparent" />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex flex-wrap gap-3 mt-4 justify-center">
-            {approvalStats.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CHART_COLORS[i] }} />
-                <span className="text-gray-400">{item.level}</span>
-                <span className="text-white font-semibold">{item.count}</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Bar Chart - Departments */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="glass-card p-6"
-          id="department-chart"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Forms by Department</h3>
-            <button onClick={() => exportChartAsPng('department-chart', 'department-distribution')} className="p-1.5 rounded-lg hover:bg-navy-light/30 text-gray-500 hover:text-gold">
-              <Download className="w-4 h-4" />
-            </button>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={departmentStats} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#243656" />
-              <XAxis type="number" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-              <YAxis type="category" dataKey="department" tick={{ fill: '#9CA3AF', fontSize: 12 }} width={90} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="completed" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} name="Completed" />
-              <Bar dataKey="pending" stackId="a" fill="#F59E0B" name="Pending" />
-              <Bar dataKey="rejected" stackId="a" fill="#6B7280" radius={[0, 4, 4, 0]} name="Rejected" />
-            </BarChart>
-          </ResponsiveContainer>
-        </motion.div>
-      </div>
-
-      {/* Trend Chart */}
+      {/* Director Identity Banner */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="glass-card p-6"
-        id="trend-chart"
+        className="glass-card p-5 border border-purple-500/20"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-white">Completion Trend (Last 30 Days)</h3>
-          <button onClick={() => exportChartAsPng('trend-chart', 'completion-trend')} className="p-1.5 rounded-lg hover:bg-navy-light/30 text-gray-500 hover:text-gold">
-            <Download className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+            <Shield className="w-7 h-7 text-purple-400" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-white">{DIRECTOR.name}</h2>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                Director · Level 3 Approver
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-1 text-sm text-gray-400">
+              <Mail className="w-3.5 h-3.5" />
+              <span>{DIRECTOR.email}</span>
+            </div>
+          </div>
+          <div className="text-right hidden sm:block">
+            <p className="text-3xl font-bold text-purple-400">{pending.length}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Awaiting your decision</p>
+          </div>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={trendData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#243656" />
-            <XAxis dataKey="date" tick={{ fill: '#9CA3AF', fontSize: 11 }} tickFormatter={v => v.slice(5)} />
-            <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-            <Line type="monotone" dataKey="submitted" stroke="#3B82F6" strokeWidth={2} dot={false} name="Submitted" />
-            <Line type="monotone" dataKey="completed" stroke="#10B981" strokeWidth={2} dot={false} name="Completed" />
-            <Line type="monotone" dataKey="rejected" stroke="#EF4444" strokeWidth={2} dot={false} name="Rejected" />
-          </LineChart>
-        </ResponsiveContainer>
       </motion.div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {approvalStats.filter(a => a.level.startsWith('Level')).map((item, i) => (
-          <motion.button
-            key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 + i * 0.1 }}
-            whileHover={{ scale: 1.02 }}
-            onClick={() => navigate(`/approval/${i + 1}`)}
-            className="glass-card-hover p-5 text-left"
-          >
-            <div className="flex items-center justify-between">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="text-2xl font-bold text-white">{item.count}</span>
+      {/* Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-card p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center">
+              <Clock className="w-4.5 h-4.5 text-purple-400" />
             </div>
-            <p className="text-sm font-medium text-gray-300 mt-3">{item.level}</p>
-            <p className="text-xs text-gray-500 mt-1">Avg. {item.avgDays} days waiting</p>
-          </motion.button>
-        ))}
+            <p className="text-sm text-gray-400 font-medium">Pending Approval</p>
+          </div>
+          <p className="text-4xl font-bold text-white">{pending.length}</p>
+          <p className="text-xs text-gray-500 mt-1">forms awaiting your review</p>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-card p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-red-500/20 flex items-center justify-center">
+              <AlertTriangle className="w-4.5 h-4.5 text-red-400" />
+            </div>
+            <p className="text-sm text-gray-400 font-medium">Critical (&gt;7 days)</p>
+          </div>
+          <p className="text-4xl font-bold text-red-400">{critical.length}</p>
+          <p className="text-xs text-gray-500 mt-1">need immediate attention</p>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card p-5">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 flex items-center justify-center">
+              <Clock className="w-4.5 h-4.5 text-amber-400" />
+            </div>
+            <p className="text-sm text-gray-400 font-medium">Avg. Wait Time</p>
+          </div>
+          <p className="text-4xl font-bold text-white">{avgDays}<span className="text-lg text-gray-500 ml-1">d</span></p>
+          <p className="text-xs text-gray-500 mt-1">average days waiting</p>
+        </motion.div>
       </div>
+
+      {/* Approval Queue */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Pending Approvals — Your Queue</h3>
+          {pending.length > 0 && (
+            <span className="text-xs text-gray-500">
+              Sorted by wait time (longest first)
+            </span>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <AnimatePresence>
+            {pending.map((sub, i) => {
+              const badge = priorityBadge(sub.daysAtCurrentLevel);
+              const isActioning = actionLoading === sub.id;
+
+              return (
+                <motion.div
+                  key={sub.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.3 }}
+                  className="glass-card p-5"
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Priority indicator */}
+                    <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{
+                      background: sub.daysAtCurrentLevel > 14 ? '#EF4444' : sub.daysAtCurrentLevel > 7 ? '#F59E0B' : '#8B5CF6'
+                    }} />
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-mono text-gold">{sub.referenceNumber}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badge.cls}`}>
+                          {badge.label}
+                        </span>
+                        <span className="text-xs text-gray-500">{sub.formTitle}</span>
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedSubmission(sub)}
+                        className="text-left mt-1 group flex items-center gap-1 hover:text-gold transition-colors"
+                      >
+                        <p className="text-base font-semibold text-white group-hover:text-gold">{sub.title}</p>
+                        <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-gold" />
+                      </button>
+
+                      <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-gray-500">
+                        <span className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5" />
+                          {sub.submittedBy.name}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5" />
+                          {sub.submittedBy.department}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5" />
+                          Submitted {sub.submissionDate}
+                        </span>
+                        <span className={`font-semibold ${priorityColor(sub.daysAtCurrentLevel)}`}>
+                          {sub.daysAtCurrentLevel} days waiting
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Approve / Reject */}
+                    <div className="flex flex-col sm:flex-row items-center gap-2 flex-shrink-0">
+                      {isActioning ? (
+                        <Loader2 className="w-5 h-5 text-gold animate-spin" />
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleDecision(sub.id, 'approved')}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 text-sm font-semibold transition-all hover:scale-105"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleDecision(sub.id, 'rejected')}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-sm font-semibold transition-all hover:scale-105"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Reject
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+
+          {pending.length === 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card p-16 text-center">
+              <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
+              <p className="text-lg font-semibold text-white">All caught up!</p>
+              <p className="text-sm text-gray-500 mt-1">No submissions pending your approval.</p>
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      {/* Recently actioned (within this session) */}
+      {Object.keys(decisions).length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Actioned This Session</h3>
+          {Object.entries(decisions).map(([id, decision]) => {
+            const sub = allSubmissions.find(s => s.id === id);
+            if (!sub) return null;
+            return (
+              <div key={id} className="glass-card p-4 flex items-center gap-4 opacity-60">
+                {decision === 'approved'
+                  ? <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                  : <XCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                }
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white truncate">{sub.title}</p>
+                  <p className="text-xs text-gray-500">{sub.referenceNumber} · {sub.submittedBy.name}</p>
+                </div>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                  decision === 'approved'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'bg-red-500/20 text-red-400'
+                }`}>
+                  {decision === 'approved' ? 'Approved' : 'Rejected'}
+                </span>
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
+
+      <SubmissionModal submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} />
     </div>
   );
 }
