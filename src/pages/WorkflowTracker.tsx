@@ -177,6 +177,8 @@ export default function WorkflowTracker({ data }: Props) {
                   { key: 'submittedBy', label: 'Submitted By' },
                   { key: 'submissionDate', label: 'Date' },
                   { key: 'currentApprovalLevel', label: 'Level' },
+                  { key: 'currentApprover', label: 'Approver' },
+                  { key: 'pendingAt', label: 'Pending At' },
                   { key: 'daysAtCurrentLevel', label: 'Days at Level' },
                   { key: 'totalDaysSinceSubmission', label: 'Total Days' },
                   { key: 'overallStatus', label: 'Status' },
@@ -196,13 +198,13 @@ export default function WorkflowTracker({ data }: Props) {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={8} className="py-16 text-center">
+                <tr><td colSpan={10} className="py-16 text-center">
                   <Loader2 className="w-8 h-8 text-gold animate-spin mx-auto mb-3" />
                   <p className="text-gray-500 text-sm">Loading submissions...</p>
                 </td></tr>
               )}
               {!loading && paginatedSubmissions.length === 0 && (
-                <tr><td colSpan={8} className="py-16 text-center">
+                <tr><td colSpan={10} className="py-16 text-center">
                   <Inbox className="w-12 h-12 text-gray-600 mx-auto mb-3" />
                   <p className="text-gray-400 font-medium">No submissions found</p>
                   <p className="text-gray-600 text-sm mt-1">{hasActiveFilters ? 'Try adjusting your filters' : 'Submissions will appear here once data is loaded'}</p>
@@ -231,6 +233,30 @@ export default function WorkflowTracker({ data }: Props) {
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${levelColors[String(sub.currentApprovalLevel)]}`}>
                       {typeof sub.currentApprovalLevel === 'number' ? `Level ${sub.currentApprovalLevel}` : sub.currentApprovalLevel}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="text-sm text-white">
+                      {(() => {
+                        const level = sub.currentApprovalLevel;
+                        if (level === 'completed' || level === 'rejected') {
+                          const last = [...sub.approvalHistory].reverse().find(a => a.status !== 'pending');
+                          return last?.approverName || '-';
+                        }
+                        const current = sub.approvalHistory.find(a => a.level === level);
+                        return current?.approverName || '-';
+                      })()}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const pending = sub.approvalHistory.find(a => a.status === 'pending');
+                      if (!pending) {
+                        if (sub.currentApprovalLevel === 'completed') return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400">Completed</span>;
+                        if (sub.currentApprovalLevel === 'rejected') return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400">Rejected</span>;
+                        return <span className="text-sm text-gray-500">-</span>;
+                      }
+                      return <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${levelColors[String(pending.level)]}`}>Level {pending.level}</span>;
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-300">{sub.daysAtCurrentLevel}d</td>
                   <td className="px-4 py-3 text-sm text-gray-300">{sub.totalDaysSinceSubmission}d</td>
