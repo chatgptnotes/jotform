@@ -289,7 +289,29 @@ export function getHeatmapData(submissions: Submission[]): HeatmapCell[] {
   return cells;
 }
 
+import { SidebarCategory } from '../types';
+export const SIDEBAR_CATEGORIES: SidebarCategory[] = [
+  { id: 'all', label: 'All Assets', type: 'all' as const },
+  { id: 'procurement', label: 'Procurement', type: 'department' as const, filter: { departments: ['Procurement'] } },
+  { id: 'finance', label: 'Finance', type: 'department' as const, filter: { departments: ['Finance'] } },
+  { id: 'hr', label: 'HR', type: 'department' as const, filter: { departments: ['HR'] } },
+  { id: 'it', label: 'IT', type: 'department' as const, filter: { departments: ['IT'] } },
+  { id: 'operations', label: 'Operations', type: 'department' as const, filter: { departments: ['Operations'] } },
+  { id: 'legal', label: 'Legal', type: 'department' as const, filter: { departments: ['Legal'] } },
+  { id: 'admin', label: 'Admin', type: 'department' as const, filter: { departments: ['Admin'] } },
+  { id: 'marketing', label: 'Marketing', type: 'department' as const, filter: { departments: ['Marketing'] } },
+];
+
+export const DEFAULT_AUTO_APPROVE_RULES = [
+  {
+    id: '1',
+    name: 'Auto-approve low priority items',
+    enabled: false,
+    conditions: { maxPriority: 'low' as const, maxDaysAtLevel: 3 },
+    action: 'approve' as const,
+  },
+];
+
 import { AutoApproveRule } from '../types';
 export const DEFAULT_AUTO_APPROVE_RULES: AutoApproveRule[] = [];
-
 export const SIDEBAR_CATEGORIES: string[] = [];
