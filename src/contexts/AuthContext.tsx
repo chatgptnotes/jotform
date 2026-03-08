@@ -44,7 +44,7 @@ interface AuthContextType {
 }
 
 // DEMO MODE: Always show as Director Huzaifa Dawasaz (Dubai Media Office)
-const DEV_MOCK_AUTH = true;
+const DEV_MOCK_AUTH = false;
 
 const MOCK_USER = {
   id: 'director-huzaifa',

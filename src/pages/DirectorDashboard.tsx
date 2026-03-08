@@ -10,7 +10,8 @@ import { useSubmissions } from '../hooks/useSubmissions';
 import { Submission } from '../types';
 import CommentPanel from '../components/CommentPanel';
 import SubmissionModal from '../components/SubmissionModal';
-import { CURRENT_USER } from '../config/currentUser';
+import { USER_CONFIGS, DEFAULT_USER_CONFIG } from '../config/currentUser';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
   data: ReturnType<typeof useSubmissions>;
@@ -75,6 +76,8 @@ function LevelBadge({ level }: { level: number }) {
 
 export default function DirectorDashboard({ data }: Props) {
   const { activeSidebarCategory, addAuditEntry } = useApp();
+  const { user } = useAuth();
+  const currentUser = user?.email ? (USER_CONFIGS[user.email] || DEFAULT_USER_CONFIG) : DEFAULT_USER_CONFIG;
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<'daysAtCurrentLevel' | 'submissionDate' | 'currentApprovalLevel'>('daysAtCurrentLevel');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -91,12 +94,14 @@ export default function DirectorDashboard({ data }: Props) {
       if (typeof s.currentApprovalLevel !== 'number') return false;
 
       // Check if submission is at the director's approval level
-      const atDirectorLevel = CURRENT_USER.approvalLevels.includes(s.currentApprovalLevel as number);
+      // Admin sees everything
+      if (currentUser.isAdmin) return true;
 
-      // Check if the pending approver name matches the director
+      const atDirectorLevel = currentUser.approvalLevels.includes(s.currentApprovalLevel as number);
+
       const pendingEntry = s.approvalHistory.find(a => a.status === 'pending');
-      const nameMatch = pendingEntry
-        ? CURRENT_USER.nameMatches.some(m => pendingEntry.approverName.toLowerCase().includes(m))
+      const nameMatch = pendingEntry && currentUser.nameMatches.length > 0
+        ? currentUser.nameMatches.some(m => pendingEntry.approverName.toLowerCase().includes(m))
         : false;
 
       return atDirectorLevel || nameMatch;
@@ -142,14 +147,14 @@ export default function DirectorDashboard({ data }: Props) {
   const approvedToday = dismissedIds.size;
 
   const handleApprove = (sub: Submission) => {
-    data.approveSubmission(sub.id, 'Director', 'Approved');
+    // local dismiss only — JotForm update via API not implemented yet
     addAuditEntry(sub.id, 'approved', 'Director', `Approved at Level ${sub.currentApprovalLevel}`);
     setDismissedIds(prev => new Set([...prev, sub.id]));
   };
 
   const handleReject = (sub: Submission) => {
     if (!rejectReason.trim()) return;
-    data.rejectSubmission(sub.id, 'Director', rejectReason.trim());
+    // local dismiss only — JotForm update via API not implemented yet
     addAuditEntry(sub.id, 'rejected', 'Director', `Rejected: ${rejectReason.trim()}`);
     setRejectReason('');
     setRejectingId(null);
@@ -178,7 +183,7 @@ export default function DirectorDashboard({ data }: Props) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-white">
-              Welcome, {CURRENT_USER.name} — <span className="text-gold capitalize">{CURRENT_USER.role}</span>
+              Welcome, {currentUser.name} — <span className="text-gold capitalize">{currentUser.role}</span>
             </h2>
             <p className="text-sm text-gray-400 mt-1">
               {directorSubmissions.length > 0

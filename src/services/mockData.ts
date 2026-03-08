@@ -312,6 +312,4 @@ export const DEFAULT_AUTO_APPROVE_RULES = [
   },
 ];
 
-import { AutoApproveRule } from '../types';
-export const DEFAULT_AUTO_APPROVE_RULES: AutoApproveRule[] = [];
-export const SIDEBAR_CATEGORIES: string[] = [];
+
