@@ -17,7 +17,7 @@ interface Props {
 }
 
 export default function Dashboard({ data }: Props) {
-  const { allSubmissions, loading } = data;
+  const { allSubmissions, loading, refresh } = data;
 
   // Only show submissions pending at the director's approval level
   const pendingSubmissions = allSubmissions.filter(
@@ -47,10 +47,62 @@ export default function Dashboard({ data }: Props) {
 
   const handleDecision = async (id: string, decision: 'approved' | 'rejected') => {
     setActionLoading(id);
-    // Simulate API call (in production: call JotForm API to push decision)
-    await new Promise(resolve => setTimeout(resolve, 700));
-    setDecisions(prev => ({ ...prev, [id]: decision }));
-    setActionLoading(null);
+    try {
+      // Find the submission to determine which JotForm field to update
+      const sub = allSubmissions.find(s => s.id === id);
+      if (!sub) throw new Error('Submission not found');
+
+      // Field IDs for each approval level status
+      const levelFieldMap: Record<number, { statusField: string; approverField: string; dateField: string }> = {
+        1: { statusField: 'submission[8]', approverField: 'submission[9]', dateField: 'submission[10]' },
+        2: { statusField: 'submission[11]', approverField: 'submission[12]', dateField: 'submission[13]' },
+        3: { statusField: 'submission[14]', approverField: 'submission[15]', dateField: 'submission[16]' },
+        4: { statusField: 'submission[17]', approverField: 'submission[18]', dateField: 'submission[19]' },
+      };
+
+      const lvl = typeof sub.currentApprovalLevel === 'number' ? sub.currentApprovalLevel : DIRECTOR.approvalLevel;
+      const fields = levelFieldMap[lvl];
+      if (!fields) throw new Error(`No field map for level ${lvl}`);
+
+      const today = new Date();
+      const dateStr = `${today.getMonth() + 1}-${String(today.getDate()).padStart(2,'0')}-${today.getFullYear()}`;
+
+      // Build form-encoded body for JotForm submission update
+      const params = new URLSearchParams();
+      params.set(fields.statusField, decision === 'approved' ? 'Approved' : 'Rejected');
+      params.set(fields.approverField, DIRECTOR.name);
+      params.set(fields.dateField, dateStr);
+
+      // If all 4 levels done or rejected, update overall status
+      const isLastLevel = lvl === 4;
+      if (decision === 'rejected' || isLastLevel) {
+        params.set('submission[20]', decision === 'approved' ? 'Completed' : 'Rejected');
+      } else {
+        params.set('submission[20]', 'In Progress');
+      }
+
+      const res = await fetch(`/api/jotform-update?submissionId=${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+      });
+
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+      setDecisions(prev => ({ ...prev, [id]: decision }));
+
+      // Trigger webhook sync so Supabase is updated too
+      fetch(`/api/webhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionID: id }),
+      }).catch(() => {});
+    } catch (err) {
+      console.error('Approval error:', err);
+      alert(`Failed to submit decision: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const priorityColor = (days: number) => {
