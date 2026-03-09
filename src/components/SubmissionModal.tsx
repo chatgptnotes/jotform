@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle2, Clock, XCircle, User, Calendar, Building2, FileText, Send, Loader2 } from 'lucide-react';
+import {
+  X, CheckCircle2, Clock, XCircle, User, Calendar, Building2, FileText,
+  Send, Loader2, PenLine, AlertCircle,
+} from 'lucide-react';
 import { Submission } from '../types';
 import jotformApi from '../services/jotformApi';
+import SignaturePad from './SignaturePad';
+import { CURRENT_USER } from '../config/currentUser';
 
 interface Props {
   submission: Submission | null;
@@ -27,35 +32,91 @@ const LEVEL_FIELD_MAP: Record<number, { statusField: string; approverField: stri
   4: { statusField: '17', approverField: '18' },
 };
 
+// Director-level approvals require signature
+const SIGNATURE_REQUIRED_LEVELS = [3, 4];
+
 export default function SubmissionModal({ submission, onClose, onUpdate }: Props) {
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [uploadingSignature, setUploadingSignature] = useState(false);
   const [pushResult, setPushResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [comment, setComment] = useState('');
+  const [signature, setSignature] = useState('');
+
+  const isSubmitting = approving || rejecting || uploadingSignature;
+
+  const level = typeof submission?.currentApprovalLevel === 'number' ? submission.currentApprovalLevel : null;
+  const signatureRequired = level !== null && SIGNATURE_REQUIRED_LEVELS.includes(level);
+  const approveEnabled = comment.trim().length > 0 && (!signatureRequired || signature !== '');
+  const rejectEnabled = comment.trim().length > 0;
 
   const handleApproval = async (action: 'approve' | 'reject') => {
     if (!submission || typeof submission.currentApprovalLevel !== 'number') return;
-    
+    if (!comment.trim()) return;
+    if (action === 'approve' && signatureRequired && !signature) return;
+
     action === 'approve' ? setApproving(true) : setRejecting(true);
     setPushResult(null);
 
-    const level = submission.currentApprovalLevel;
-    const fields = LEVEL_FIELD_MAP[level];
+    const lvl = submission.currentApprovalLevel;
+    const fields = LEVEL_FIELD_MAP[lvl];
     if (!fields) {
-      setPushResult({ success: false, message: `No field mapping for level ${level}` });
+      setPushResult({ success: false, message: `No field mapping for level ${lvl}` });
       setApproving(false);
       setRejecting(false);
       return;
     }
 
+    const actionLabel = action === 'approve' ? 'Approved' : 'Rejected';
+    const timestamp = new Date().toLocaleString('en-AE', { timeZone: 'Asia/Dubai', hour12: true });
+
+    // Upload signature to Supabase Storage and get a public URL
+    let signatureUrl = '';
+    if (action === 'approve' && signature) {
+      setUploadingSignature(true);
+      try {
+        const uploadRes = await fetch('/api/upload-signature', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            submissionId: submission.id,
+            level: lvl,
+            signatureData: signature,
+            comment: comment.trim(),
+            approverName: CURRENT_USER.name,
+          }),
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.signatureUrl) {
+          signatureUrl = uploadData.signatureUrl;
+        } else {
+          // Signature upload failed — block approval for required levels
+          setPushResult({ success: false, message: `Signature could not be saved: ${uploadData.error || 'Unknown error'}. Please try again.` });
+          setUploadingSignature(false);
+          setApproving(false);
+          return;
+        }
+      } catch (err) {
+        setPushResult({ success: false, message: `Signature upload failed: ${(err as Error).message}. Please try again.` });
+        setUploadingSignature(false);
+        setApproving(false);
+        return;
+      }
+      setUploadingSignature(false);
+    }
+
+    const approverNote = signatureUrl
+      ? `${actionLabel} by ${CURRENT_USER.name} via JotFlow on ${timestamp} — ${comment.trim()} | Signature: ${signatureUrl}`
+      : `${actionLabel} by ${CURRENT_USER.name} via JotFlow on ${timestamp} — ${comment.trim()}`;
+
     const updates: Record<string, string> = {
-      [fields.statusField]: action === 'approve' ? 'Approved' : 'Rejected',
-      [fields.approverField]: `${action === 'approve' ? 'Approved' : 'Rejected'} via JotFlow Dashboard`,
+      [fields.statusField]: actionLabel,
+      [fields.approverField]: approverNote,
     };
 
-    // If approving last level or rejecting, update overall status
     if (action === 'reject') {
       updates['20'] = 'Rejected';
-    } else if (level === 4) {
+    } else if (lvl === 4) {
       updates['20'] = 'Completed';
     } else {
       updates['20'] = 'In Progress';
@@ -71,15 +132,25 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     }
   };
 
-  // Keyboard: Esc to close
+  // Reset form when submission changes
+  useEffect(() => {
+    setComment('');
+    setSignature('');
+    setPushResult(null);
+    setUploadingSignature(false);
+    setApproving(false);
+    setRejecting(false);
+  }, [submission?.id]);
+
+  // Keyboard: Esc to close — blocked while submission is in progress
   useEffect(() => {
     if (!submission) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !isSubmitting) onClose();
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [submission, onClose]);
+  }, [submission, onClose, isSubmitting]);
 
   if (!submission) return null;
 
@@ -101,16 +172,21 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           onClick={e => e.stopPropagation()}
-          className="glass-card w-full max-w-2xl max-h-[85vh] overflow-y-auto"
+          className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto"
         >
           {/* Header */}
-          <div className="p-6 border-b border-navy-light/20 flex items-start justify-between">
+          <div className="p-6 border-b border-navy-light/20 flex items-start justify-between sticky top-0 bg-navy-dark/95 z-10">
             <div>
               <p className="text-xs text-gold font-medium">{submission.referenceNumber}</p>
               <h3 className="text-xl font-bold text-white mt-1">{submission.title}</h3>
               <p className="text-sm text-gray-400 mt-1">{submission.formTitle}</p>
             </div>
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-navy-light/30 text-gray-400 hover:text-white">
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="p-2 rounded-lg hover:bg-navy-light/30 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+              title={isSubmitting ? 'Please wait until submission completes' : 'Close'}
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -160,35 +236,116 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
               <span className="text-xs text-gray-500">{submission.totalDaysSinceSubmission} days total</span>
             </div>
 
-            {/* Action Buttons — Push to JotForm */}
+            {/* Action section */}
             {typeof submission.currentApprovalLevel === 'number' && (
-              <div className="bg-navy-light/30 rounded-xl p-4 border border-navy-light/20">
-                <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+              <div className="bg-navy-light/30 rounded-xl p-4 border border-navy-light/20 space-y-4">
+                <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
                   <Send className="w-4 h-4 text-gold" />
                   Take Action — Level {submission.currentApprovalLevel}
                   <span className="text-xs text-gray-500 font-normal ml-2">(Pushes to JotForm Enterprise)</span>
                 </h4>
-                <div className="flex gap-3">
+
+                {/* Steps indicator */}
+                <div className="flex items-center gap-2 text-xs">
+                  <span className={`flex items-center gap-1 px-2 py-1 rounded-full font-medium ${comment.trim() ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                    <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">{comment.trim() ? '✓' : '1'}</span>
+                    Comment
+                  </span>
+                  {signatureRequired && (
+                    <>
+                      <span className="text-gray-600">→</span>
+                      <span className={`flex items-center gap-1 px-2 py-1 rounded-full font-medium ${signature ? 'bg-emerald-500/20 text-emerald-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                        <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">{signature ? '✓' : '2'}</span>
+                        Signature
+                      </span>
+                    </>
+                  )}
+                  <span className="text-gray-600">→</span>
+                  <span className={`flex items-center gap-1 px-2 py-1 rounded-full font-medium ${approveEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-500'}`}>
+                    <span className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[10px]">{signatureRequired ? '3' : '2'}</span>
+                    Approve
+                  </span>
+                </div>
+
+                {/* Step 1: Comment */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-gray-400 mb-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                    Step 1 — Comment <span className="text-red-400 font-bold">*</span>
+                  </label>
+                  <textarea
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                    placeholder="Enter your comment or reason for approval/rejection..."
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg bg-navy-dark border border-navy-light/30 focus:border-gold/50 text-sm text-white placeholder-gray-600 focus:outline-none resize-none transition-colors"
+                  />
+                </div>
+
+                {/* Step 2: Signature — required for Level 3 & 4 approvals */}
+                {signatureRequired && (
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-400 mb-1.5">
+                      <PenLine className="w-3.5 h-3.5 text-purple-400" />
+                      Step 2 — Digital Signature <span className="text-red-400 font-bold">*</span>
+                      <span className="text-gray-500 font-normal ml-1">required for Level {submission.currentApprovalLevel}</span>
+                    </label>
+                    {signature ? (
+                      <div className="relative border border-emerald-500/30 rounded-xl overflow-hidden bg-white">
+                        <img src={signature} alt="Signature" className="w-full object-contain" style={{ height: '150px' }} />
+                        <div className="absolute inset-0 flex items-center justify-end p-3">
+                          <button
+                            onClick={() => setSignature('')}
+                            className="px-2.5 py-1 rounded-lg bg-navy-dark/80 text-gray-400 hover:text-red-400 text-xs border border-navy-light/30 transition-colors"
+                          >
+                            Re-sign
+                          </button>
+                        </div>
+                        <div className="absolute top-2 left-3 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30">
+                          <span className="text-[10px] text-emerald-400 font-medium">✓ Signature captured</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <SignaturePad onSign={setSignature} height={150} />
+                    )}
+                  </div>
+                )}
+
+                {/* Step 3: Approve / Reject buttons */}
+                <div className="flex gap-3 pt-1">
                   <button
+                    type="button"
                     onClick={() => handleApproval('approve')}
-                    disabled={approving || rejecting}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl font-semibold transition-all"
+                    disabled={!approveEnabled || isSubmitting}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
                   >
-                    {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    {approving ? 'Pushing to JotForm...' : 'Approve'}
+                    {(uploadingSignature || approving) ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    {uploadingSignature ? 'Saving signature...' : approving ? 'Submitting to JotForm...' : 'Approve'}
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleApproval('reject')}
-                    disabled={approving || rejecting}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl font-semibold transition-all"
+                    disabled={!rejectEnabled || isSubmitting}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
                   >
                     {rejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                    {rejecting ? 'Pushing to JotForm...' : 'Reject'}
+                    {rejecting ? 'Submitting to JotForm...' : 'Reject'}
                   </button>
                 </div>
+
+                {/* What's still needed */}
+                {(!comment.trim() || (signatureRequired && !signature)) && (
+                  <div className="text-xs text-amber-400/80 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2 space-y-0.5">
+                    {!comment.trim() && <p>→ Enter a comment above to continue</p>}
+                    {signatureRequired && !signature && comment.trim() && <p>→ Draw your signature above to enable Approve</p>}
+                  </div>
+                )}
+
                 {pushResult && (
-                  <div className={`mt-3 p-3 rounded-lg text-sm font-medium ${
-                    pushResult.success ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  <div className={`p-3 rounded-lg text-sm font-medium ${
+                    pushResult.success
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-red-500/20 text-red-400 border border-red-500/30'
                   }`}>
                     {pushResult.success ? '✅ Successfully pushed to JotForm Enterprise!' : `❌ ${pushResult.message}`}
                   </div>
@@ -229,6 +386,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
             </div>
           </div>
         </motion.div>
+
       </motion.div>
     </AnimatePresence>
   );
