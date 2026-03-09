@@ -7,7 +7,8 @@ import {
 import { Submission } from '../types';
 import jotformApi from '../services/jotformApi';
 import SignaturePad from './SignaturePad';
-import { CURRENT_USER } from '../config/currentUser';
+import { USER_CONFIGS, DEFAULT_USER_CONFIG } from '../config/currentUser';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
   submission: Submission | null;
@@ -36,6 +37,9 @@ const LEVEL_FIELD_MAP: Record<number, { statusField: string; approverField: stri
 const SIGNATURE_REQUIRED_LEVELS = [3, 4];
 
 export default function SubmissionModal({ submission, onClose, onUpdate }: Props) {
+  const { user } = useAuth();
+  const currentUser = (user?.email && USER_CONFIGS[user.email]) || DEFAULT_USER_CONFIG;
+
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [uploadingSignature, setUploadingSignature] = useState(false);
@@ -83,7 +87,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
             level: lvl,
             signatureData: signature,
             comment: comment.trim(),
-            approverName: CURRENT_USER.name,
+            approverName: currentUser.name,
           }),
         });
         const uploadData = await uploadRes.json();
@@ -106,8 +110,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     }
 
     const approverNote = signatureUrl
-      ? `${actionLabel} by ${CURRENT_USER.name} via JotFlow on ${timestamp} — ${comment.trim()} | Signature: ${signatureUrl}`
-      : `${actionLabel} by ${CURRENT_USER.name} via JotFlow on ${timestamp} — ${comment.trim()}`;
+      ? `${actionLabel} by ${currentUser.name} via JotFlow on ${timestamp} — ${comment.trim()} | Signature: ${signatureUrl}`
+      : `${actionLabel} by ${currentUser.name} via JotFlow on ${timestamp} — ${comment.trim()}`;
 
     const updates: Record<string, string> = {
       [fields.statusField]: actionLabel,
