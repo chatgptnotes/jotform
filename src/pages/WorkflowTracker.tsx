@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Download, Filter, X, Loader2, Inbox } from 'lucide-react';
 import { Submission } from '../types';
@@ -9,7 +9,7 @@ interface Props {
   data: ReturnType<typeof import('../hooks/useSubmissions').useSubmissions>;
 }
 
-const DEPARTMENTS = ['Finance', 'HR', 'Procurement', 'IT', 'Operations', 'Legal', 'Admin', 'Marketing'];
+// Departments derived from live data (populated in component)
 const LEVELS = [
   { value: '', label: 'All Levels' },
   { value: '1', label: 'Level 1' },
@@ -36,8 +36,14 @@ const levelColors: Record<string, string> = {
 };
 
 export default function WorkflowTracker({ data }: Props) {
-  const { paginatedSubmissions, filteredSubmissions, filters, setFilters, sort, setSort, pagination, setPagination, loading } = data;
+  const { paginatedSubmissions, filteredSubmissions, allSubmissions, filters, setFilters, sort, setSort, pagination, setPagination, loading } = data;
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+
+  // Live departments from actual submission data
+  const liveDepartments = useMemo(() => {
+    const depts = new Set(allSubmissions.map(s => s.submittedBy.department).filter(Boolean));
+    return Array.from(depts).sort();
+  }, [allSubmissions]);
   const [showFilters, setShowFilters] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -106,7 +112,7 @@ export default function WorkflowTracker({ data }: Props) {
             </select>
             <select value={filters.department} onChange={e => setFilters(prev => ({ ...prev, department: e.target.value }))} className="bg-navy-dark border border-navy-light/30 rounded-lg px-3 py-2 text-sm text-gray-300">
               <option value="">All Departments</option>
-              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+              {liveDepartments.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <select value={filters.status} onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))} className="bg-navy-dark border border-navy-light/30 rounded-lg px-3 py-2 text-sm text-gray-300">
               {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -178,7 +184,7 @@ export default function WorkflowTracker({ data }: Props) {
                   { key: 'submissionDate', label: 'Date' },
                   { key: 'currentApprovalLevel', label: 'Level' },
                   { key: 'currentApprover', label: 'Approver' },
-                  { key: 'pendingAt', label: 'Pending At' },
+                  { key: 'pendingAt', label: 'Awaiting Level' },
                   { key: 'daysAtCurrentLevel', label: 'Days at Level' },
                   { key: 'totalDaysSinceSubmission', label: 'Total Days' },
                   { key: 'overallStatus', label: 'Status' },
@@ -217,7 +223,13 @@ export default function WorkflowTracker({ data }: Props) {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.02 }}
                   onClick={() => setSelectedSubmission(sub)}
-                  className="border-b border-navy-light/10 hover:bg-navy-light/20 cursor-pointer transition-colors"
+                  className={`border-b border-navy-light/10 cursor-pointer transition-colors ${
+                    sub.currentApprovalLevel === 'rejected'
+                      ? 'bg-red-900/10 hover:bg-red-900/20 opacity-70'
+                      : sub.currentApprovalLevel === 'completed'
+                      ? 'bg-emerald-900/5 hover:bg-emerald-900/10'
+                      : 'hover:bg-navy-light/20'
+                  }`}
                 >
                   <td className="px-4 py-3 text-sm font-mono text-gold">{sub.referenceNumber}</td>
                   <td className="px-4 py-3">
@@ -294,7 +306,7 @@ export default function WorkflowTracker({ data }: Props) {
         </div>
       </div>
 
-      <SubmissionModal submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} onUpdate={() => { setSelectedSubmission(null); window.location.reload(); }} />
+      <SubmissionModal submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} onUpdate={() => { setSelectedSubmission(null); data.refresh(); }} />
     </div>
   );
 }

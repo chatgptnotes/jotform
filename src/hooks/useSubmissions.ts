@@ -282,9 +282,20 @@ export function useSubmissions() {
     lastUpdated: null,
   });
 
-  const [filters, setFilters] = useState<FilterConfig>({
-    approvalLevel: '', department: '', status: '', dateFrom: '', dateTo: '', search: '',
+  const [filters, setFilters] = useState<FilterConfig>(() => {
+    try {
+      const saved = localStorage.getItem('jotflow_filters');
+      return saved ? { ...{ approvalLevel: '', department: '', status: '', dateFrom: '', dateTo: '', search: '' }, ...JSON.parse(saved) } : { approvalLevel: '', department: '', status: '', dateFrom: '', dateTo: '', search: '' };
+    } catch { return { approvalLevel: '', department: '', status: '', dateFrom: '', dateTo: '', search: '' }; }
   });
+  const wrappedSetFilters = (updater: FilterConfig | ((prev: FilterConfig) => FilterConfig)) => {
+    setFilters(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try { localStorage.setItem('jotflow_filters', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
   const [sort, setSort] = useState<SortConfig>({ key: 'submissionDate', direction: 'desc' });
   const [pagination, setPagination] = useState<PaginationConfig>({ page: 1, perPage: 25, total: 0 });
 
@@ -292,9 +303,8 @@ export function useSubmissions() {
     setLoading(true);
     setError(null);
     try {
-      // Step 1: trigger server-side sync (JotForm → Supabase)
-      // Fire-and-forget — we'll read from Supabase after
-      fetch('/api/sync').catch(() => {});
+      // Step 1: trigger server-side sync (JotForm → Supabase) — best-effort, non-blocking
+      fetch('/api/sync').catch(err => console.warn('[JotFlow] Sync failed:', err));
 
       // Step 2: fetch both forms directly from JotForm (always fresh)
       const [poRes, cpRes] = await Promise.all([
@@ -401,7 +411,7 @@ export function useSubmissions() {
     allSubmissions, filteredSubmissions, paginatedSubmissions,
     loading, error,
     stats, approvalStats, departmentStats, trendData, bottleneckData, heatmapData,
-    filters, setFilters,
+    filters, setFilters: wrappedSetFilters,
     sort, setSort,
     pagination, setPagination,
     refreshConfig, setRefreshConfig,
