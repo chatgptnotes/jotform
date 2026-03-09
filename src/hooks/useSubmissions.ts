@@ -124,14 +124,14 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
   else if (overallStatus.includes('reject')) currentLevel = 'rejected';
 
   const createdAt = (raw.created_at as string) || '';
-  const submissionDate = createdAt ? new Date(createdAt.replace(' ', 'T') + 'Z') : new Date();
+  // JotForm timestamps are UTC; normalize "YYYY-MM-DD HH:MM:SS" → ISO 8601
+  const parseUTC = (s: string) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
+  const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
 
   // Days at current level = time since the last approval date, or since submission if at level 1
   const lastApproval = [...history].reverse().find(h => h.status === 'approved' && h.date);
-  const levelStartDate = lastApproval?.date
-    ? new Date(lastApproval.date.replace(' ', 'T') + (lastApproval.date.includes('T') ? '' : 'Z'))
-    : submissionDate;
+  const levelStartDate = lastApproval?.date ? parseUTC(lastApproval.date) : submissionDate;
   const daysAtCurrentLevel = Math.floor((Date.now() - levelStartDate.getTime()) / (1000 * 60 * 60 * 24));
 
   const id = String(raw.id);
@@ -188,7 +188,8 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
   }];
 
   const createdAt = (raw.created_at as string) || '';
-  const submissionDate = createdAt ? new Date(createdAt.replace(' ', 'T') + 'Z') : new Date();
+  const parseUTC = (s: string) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
+  const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
   // Content publishing is single-level — daysAtCurrentLevel = totalDays
   const daysAtCurrentLevel = totalDays;
@@ -242,7 +243,8 @@ function mapTaskTestSubmission(raw: Record<string, unknown>, workflowSteps: Work
   }];
 
   const createdAt = (raw.created_at as string) || '';
-  const submissionDate = createdAt ? new Date(createdAt.replace(' ', 'T') + 'Z') : new Date();
+  const parseUTC = (s: string) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
+  const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
   const daysAtCurrentLevel = totalDays;
 
@@ -370,11 +372,19 @@ export function useSubmissions() {
         fetch(`/api/jotform?path=form/${TASK_TEST_FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
       ]);
 
-      const poRows: Record<string, unknown>[] = poRes.ok ? ((await poRes.json()).content || []) : [];
-      const cpRows: Record<string, unknown>[] = cpRes.ok ? ((await cpRes.json()).content || []) : [];
-      const ttRows: Record<string, unknown>[] = ttRes.ok ? ((await ttRes.json()).content || []) : [];
+      const apiError = !poRes.ok && !cpRes.ok && !ttRes.ok;
 
-      if (poRows.length > 0 || cpRows.length > 0 || ttRows.length > 0) {
+      const poData = poRes.ok ? await poRes.json() : null;
+      const cpData = cpRes.ok ? await cpRes.json() : null;
+      const ttData = ttRes.ok ? await ttRes.json() : null;
+
+      const poRows: Record<string, unknown>[] = poData?.content || [];
+      const cpRows: Record<string, unknown>[] = cpData?.content || [];
+      const ttRows: Record<string, unknown>[] = ttData?.content || [];
+
+      const hasApiData = poRows.length > 0 || cpRows.length > 0 || ttRows.length > 0;
+
+      if (hasApiData) {
         // Fetch workflow step configs for all forms (cached after first load)
         const [poSteps, cpSteps, ttSteps] = await Promise.all([
           fetchWorkflowSteps(FORM_ID),
@@ -393,7 +403,11 @@ export function useSubmissions() {
         return;
       }
 
-      // Fallback: read from Supabase
+      // Fallback: read from Supabase (triggered by API error or genuinely empty)
+      if (apiError) {
+        console.warn('[JotFlow] JotForm API unavailable — loading from Supabase cache (data may be stale)');
+        setError('Live data unavailable — showing cached data');
+      }
       const { data: sbRows, error: sbError } = await supabase
         .from('jf_submissions')
         .select('*')

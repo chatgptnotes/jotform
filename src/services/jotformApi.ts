@@ -1,8 +1,8 @@
 import { ApiConfig, Submission, DiscoveredForm } from '../types';
 
 // Use local proxy to avoid CORS issues with enterprise JotForm API
+// API key is server-side only (JOTFORM_API_KEY env var in Vercel)
 const DEFAULT_BASE_URL = '/api/jotform';
-const DEFAULT_API_KEY = 'af7787b0b077e0e60e89f9d1fa6101e8';
 
 class JotFormApiService {
   private config: ApiConfig;
@@ -11,8 +11,12 @@ class JotFormApiService {
 
   constructor() {
     const stored = localStorage.getItem('jotform_config');
-    this.config = stored ? JSON.parse(stored) : {
-      apiKey: DEFAULT_API_KEY,
+    const parsed = stored ? JSON.parse(stored) : null;
+    this.config = parsed ? {
+      ...parsed,
+      apiKey: '', // never store API key in browser
+    } : {
+      apiKey: '',
       formIds: [],
       baseUrl: DEFAULT_BASE_URL,
       isConnected: false,
@@ -51,9 +55,6 @@ class JotFormApiService {
   }
 
   async testConnection(): Promise<{ success: boolean; message: string; formCount?: number }> {
-    if (!this.config.apiKey) {
-      return { success: false, message: 'No API key configured' };
-    }
     try {
       const response = await fetch(this.buildUrl('user/forms', { limit: '1' }));
       if (!response.ok) {
@@ -189,8 +190,8 @@ class JotFormApiService {
   }
 
   async fetchAllSubmissions(): Promise<{ submissions: Partial<Submission>[]; error?: string }> {
-    if (!this.config.apiKey || this.config.formIds.length === 0) {
-      return { submissions: [], error: 'No API key or forms configured' };
+    if (this.config.formIds.length === 0) {
+      return { submissions: [], error: 'No forms configured' };
     }
 
     try {

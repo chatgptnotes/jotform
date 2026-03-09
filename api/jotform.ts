@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const JOTFORM_BASE = 'https://eforms.mediaoffice.ae/API';
-const API_KEY = process.env.JOTFORM_API_KEY || 'af7787b0b077e0e60e89f9d1fa6101e8';
+const API_KEY = process.env.JOTFORM_API_KEY;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -9,6 +9,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  if (!API_KEY) {
+    return res.status(500).json({ error: 'JOTFORM_API_KEY environment variable is not set' });
+  }
 
   // Get the API path from query param
   const apiPath = (req.query.path as string) || 'user/forms';

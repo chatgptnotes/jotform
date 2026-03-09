@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, CheckCircle2, Clock, XCircle, User, Calendar, Building2, FileText,
@@ -45,6 +45,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const [taskUrlLoading, setTaskUrlLoading] = useState(false);
   const [formUrlLoading, setFormUrlLoading] = useState(false);
+  // AbortController ref — cancelled when modal closes or submission changes
+  const abortRef = useRef<AbortController | null>(null);
   const [pushResult, setPushResult] = useState<{ success: boolean; message: string } | null>(null);
   const [comment, setComment] = useState('');
   const [signature, setSignature] = useState('');
@@ -82,9 +84,10 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     let signatureUrl = '';
     if (action === 'approve' && signature) {
       setUploadingSignature(true);
+      const uploadCtrl = new AbortController();
+      abortRef.current = uploadCtrl;
+      const uploadTimeout = setTimeout(() => uploadCtrl.abort(), 20000);
       try {
-        const uploadCtrl = new AbortController();
-        const uploadTimeout = setTimeout(() => uploadCtrl.abort(), 15000);
         const uploadRes = await fetch('/api/upload-signature', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -102,18 +105,22 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
         if (uploadData.signatureUrl) {
           signatureUrl = uploadData.signatureUrl;
         } else {
-          // Signature upload failed — block approval for required levels
           setPushResult({ success: false, message: `Signature could not be saved: ${uploadData.error || 'Unknown error'}. Please try again.` });
           setUploadingSignature(false);
           setApproving(false);
           return;
         }
       } catch (err) {
-        setPushResult({ success: false, message: `Signature upload failed: ${(err as Error).message}. Please try again.` });
+        clearTimeout(uploadTimeout);
+        const msg = (err as Error).name === 'AbortError'
+          ? 'Signature upload timed out. Please try again.'
+          : `Signature upload failed: ${(err as Error).message}. Please try again.`;
+        setPushResult({ success: false, message: msg });
         setUploadingSignature(false);
         setApproving(false);
         return;
       }
+      abortRef.current = null;
       setUploadingSignature(false);
     }
 
@@ -183,8 +190,10 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     }
   };
 
-  // Reset form when submission changes
+  // Reset form when submission changes; cancel any in-flight upload
   useEffect(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
     setComment('');
     setSignature('');
     setPushResult(null);

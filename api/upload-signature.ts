@@ -62,8 +62,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (dbError) {
-      // Storage upload succeeded; log the DB error but still return the URL
+      // Storage succeeded but audit record failed — return URL with warning so
+      // the approval can still proceed but the caller knows the audit may be incomplete
       console.error('jf_signatures insert error:', dbError.message);
+      return res.status(200).json({ signatureUrl, auditWarning: 'Signature saved but audit record failed: ' + dbError.message });
     }
 
     return res.status(200).json({ signatureUrl });
