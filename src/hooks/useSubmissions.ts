@@ -128,7 +128,7 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
   const editLink = String(raw.edit_link || '');
   const actionType = getActionType(workflowSteps, currentLevel);
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${FORM_ID}/${id}`;
-  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${FORM_ID}`;
+  const formUrl = `https://eforms.mediaoffice.ae/inbox/${FORM_ID}/${id}`;
 
   return {
     id,
@@ -184,7 +184,7 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
   const editLink = String(raw.edit_link || '');
   const actionType = getActionType(workflowSteps, currentLevel);
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
-  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${CONTENT_FORM_ID}`;
+  const formUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
 
   return {
     id,
@@ -245,7 +245,7 @@ function mapSupabaseRow(row: Record<string, unknown>): Submission {
     description: String(row.title || 'Purchase Order'),
     actionType: 'approval' as WorkflowActionType,
     taskUrl: `https://eforms.mediaoffice.ae/inbox/${sbFormId}/${sbId}`,
-    formUrl: `https://eforms.mediaoffice.ae/${sbFormId}`,
+    formUrl: `https://eforms.mediaoffice.ae/inbox/${sbFormId}/${sbId}`,
     submittedBy: {
       name: String(row.submitted_by || 'Unknown'),
       department: String(row.department || 'General'),
