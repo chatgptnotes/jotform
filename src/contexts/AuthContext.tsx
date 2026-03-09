@@ -196,6 +196,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setProfile(null);
     setOrganization(null);
+    // Clear persisted filters so the next user starts fresh
+    try { localStorage.removeItem('jotflow_filters'); } catch {}
   };
 
   const resetPassword = async (email: string) => {

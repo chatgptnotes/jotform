@@ -43,6 +43,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [uploadingSignature, setUploadingSignature] = useState(false);
+  const [taskUrlLoading, setTaskUrlLoading] = useState(false);
+  const [formUrlLoading, setFormUrlLoading] = useState(false);
   const [pushResult, setPushResult] = useState<{ success: boolean; message: string } | null>(null);
   const [comment, setComment] = useState('');
   const [signature, setSignature] = useState('');
@@ -81,6 +83,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     if (action === 'approve' && signature) {
       setUploadingSignature(true);
       try {
+        const uploadCtrl = new AbortController();
+        const uploadTimeout = setTimeout(() => uploadCtrl.abort(), 15000);
         const uploadRes = await fetch('/api/upload-signature', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -91,7 +95,9 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
             comment: comment.trim(),
             approverName: currentUser.name,
           }),
+          signal: uploadCtrl.signal,
         });
+        clearTimeout(uploadTimeout);
         const uploadData = await uploadRes.json();
         if (uploadData.signatureUrl) {
           signatureUrl = uploadData.signatureUrl;
@@ -146,6 +152,34 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
 
     if (result.success && onUpdate) {
       setTimeout(() => onUpdate(), 1500);
+    }
+  };
+
+  const openTaskUrl = async () => {
+    if (!submission) return;
+    setTaskUrlLoading(true);
+    try {
+      const res = await fetch(`/api/task-url?formId=${submission.formId}&submissionId=${submission.id}`);
+      const data = await res.json();
+      window.open(data.taskUrl || submission.taskUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      window.open(submission.taskUrl, '_blank', 'noopener,noreferrer');
+    } finally {
+      setTaskUrlLoading(false);
+    }
+  };
+
+  const openFormUrl = async () => {
+    if (!submission) return;
+    setFormUrlLoading(true);
+    try {
+      const res = await fetch(`/api/form-url?formId=${submission.formId}&submissionId=${submission.id}`);
+      const data = await res.json();
+      window.open(data.formUrl || submission.formUrl || submission.editLink, '_blank', 'noopener,noreferrer');
+    } catch {
+      window.open(submission.formUrl || submission.editLink, '_blank', 'noopener,noreferrer');
+    } finally {
+      setFormUrlLoading(false);
     }
   };
 
@@ -273,16 +307,15 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     <p className="text-sm text-gray-400">
                       This step requires completing a task in JotForm. Click below to open your assigned task directly.
                     </p>
-                    <a
-                      href={submission.taskUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gold/20 hover:bg-gold/30 text-gold rounded-xl font-semibold text-sm border border-gold/20 transition-all"
+                    <button
+                      onClick={openTaskUrl}
+                      disabled={taskUrlLoading}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gold/20 hover:bg-gold/30 disabled:opacity-50 text-gold rounded-xl font-semibold text-sm border border-gold/20 transition-all"
                     >
-                      <ClipboardList className="w-4 h-4" />
-                      View Task in JotForm
-                      <ExternalLink className="w-3.5 h-3.5 opacity-60" />
-                    </a>
+                      {taskUrlLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
+                      {taskUrlLoading ? 'Resolving task link...' : 'View Task in JotForm'}
+                      {!taskUrlLoading && <ExternalLink className="w-3.5 h-3.5 opacity-60" />}
+                    </button>
                   </div>
                 )}
 
@@ -292,16 +325,15 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     <p className="text-sm text-gray-400">
                       This step requires filling out or completing a form in JotForm. Click below to open it.
                     </p>
-                    <a
-                      href={submission.formUrl || submission.editLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl font-semibold text-sm border border-blue-500/20 transition-all"
+                    <button
+                      onClick={openFormUrl}
+                      disabled={formUrlLoading}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 text-blue-400 rounded-xl font-semibold text-sm border border-blue-500/20 transition-all"
                     >
-                      <FileEdit className="w-4 h-4" />
-                      View Form in JotForm
-                      <ExternalLink className="w-3.5 h-3.5 opacity-60" />
-                    </a>
+                      {formUrlLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileEdit className="w-4 h-4" />}
+                      {formUrlLoading ? 'Resolving form link...' : 'View Form in JotForm'}
+                      {!formUrlLoading && <ExternalLink className="w-3.5 h-3.5 opacity-60" />}
+                    </button>
                   </div>
                 )}
 

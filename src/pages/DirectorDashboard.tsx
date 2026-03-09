@@ -84,6 +84,7 @@ export default function DirectorDashboard({ data }: Props) {
   const [commentingId, setCommentingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
@@ -213,6 +214,7 @@ export default function DirectorDashboard({ data }: Props) {
       setRejectReason('');
       setRejectingId(null);
       setRejectedIds(prev => new Set([...prev, sub.id]));
+      setConfirmRejectId(null);
       data.refresh();
     } catch (err) {
       alert(`Rejection failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -415,23 +417,36 @@ export default function DirectorDashboard({ data }: Props) {
                             </span>
                           ) : null}
 
-                          {rejectingId === sub.id ? (
+                          {confirmRejectId === sub.id ? (
+                            <div className="flex items-center gap-1 rounded-lg bg-red-500/10 border border-red-500/30 px-2 py-1">
+                              <span className="text-[11px] text-red-400">Confirm reject?</span>
+                              <button
+                                onClick={() => handleReject(sub)}
+                                disabled={actionLoading === sub.id}
+                                className="px-2 py-0.5 rounded bg-red-600 text-white text-xs hover:bg-red-500 disabled:opacity-50 flex items-center gap-1"
+                              >
+                                {actionLoading === sub.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                Yes
+                              </button>
+                              <button onClick={() => { setConfirmRejectId(null); setRejectingId(sub.id); }} className="px-1.5 py-0.5 text-xs text-gray-500 hover:text-gray-300">
+                                No
+                              </button>
+                            </div>
+                          ) : rejectingId === sub.id ? (
                             <div className="flex items-center gap-1">
                               <input
                                 type="text"
                                 value={rejectReason}
                                 onChange={e => setRejectReason(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleReject(sub)}
                                 placeholder="Reason..."
                                 autoFocus
                                 className="w-28 px-2 py-1 text-xs rounded bg-navy-dark border border-red-500/30 text-white placeholder-gray-600 focus:outline-none"
                               />
                               <button
-                                onClick={() => handleReject(sub)}
-                                disabled={!rejectReason.trim() || actionLoading === sub.id}
-                                className="px-2 py-1 rounded bg-red-500/30 text-red-400 text-xs hover:bg-red-500/40 disabled:opacity-50 flex items-center gap-1"
+                                onClick={() => rejectReason.trim() && setConfirmRejectId(sub.id)}
+                                disabled={!rejectReason.trim()}
+                                className="px-2 py-1 rounded bg-red-500/30 text-red-400 text-xs hover:bg-red-500/40 disabled:opacity-50"
                               >
-                                {actionLoading === sub.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
                                 OK
                               </button>
                               <button onClick={() => { setRejectingId(null); setRejectReason(''); }} className="px-1.5 py-1 text-xs text-gray-500 hover:text-gray-300">

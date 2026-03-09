@@ -119,11 +119,15 @@ class JotFormApiService {
           params.append(key, val);
         }
       }
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 20000); // 20s timeout
       const response = await fetch(`/api/jotform-update?submissionId=${submissionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params.toString(),
+        signal: ctrl.signal,
       });
+      clearTimeout(timeout);
       const data = await response.json();
       if (data.responseCode === 200) {
         // Clear cache for this submission
