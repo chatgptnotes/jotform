@@ -1,6 +1,7 @@
 export type ApprovalLevel = 1 | 2 | 3 | 4;
 export type SubmissionStatus = 'pending' | 'completed' | 'rejected';
 export type OverallStatus = 'on-track' | 'delayed' | 'critical';
+export type WorkflowActionType = 'approval' | 'task' | 'form';
 
 export interface Submission {
   id: string;
@@ -9,6 +10,13 @@ export interface Submission {
   referenceNumber: string;
   title: string;
   description: string;
+  editLink?: string;
+  /** Smart action type derived from the JotForm workflow step configuration */
+  actionType: WorkflowActionType;
+  /** URL to open the JotForm task (for actionType === 'task') */
+  taskUrl?: string;
+  /** URL to open/fill the JotForm form (for actionType === 'form') */
+  formUrl?: string;
   submittedBy: {
     name: string;
     nameAr?: string;

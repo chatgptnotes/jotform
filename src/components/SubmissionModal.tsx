@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, CheckCircle2, Clock, XCircle, User, Calendar, Building2, FileText,
-  Send, Loader2, PenLine, AlertCircle,
+  Send, Loader2, PenLine, AlertCircle, ClipboardList, FileEdit, ExternalLink,
 } from 'lucide-react';
 import { Submission } from '../types';
 import jotformApi from '../services/jotformApi';
@@ -245,9 +245,54 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
               <div className="bg-navy-light/30 rounded-xl p-4 border border-navy-light/20 space-y-4">
                 <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
                   <Send className="w-4 h-4 text-gold" />
-                  Take Action — Level {submission.currentApprovalLevel}
-                  <span className="text-xs text-gray-500 font-normal ml-2">(Pushes to JotForm Enterprise)</span>
+                  {submission.actionType === 'task' ? 'Task Action' :
+                   submission.actionType === 'form' ? 'Form Action' :
+                   `Take Action — Level ${submission.currentApprovalLevel}`}
+                  <span className="text-xs text-gray-500 font-normal ml-2">
+                    {submission.actionType === 'approval' ? '(Pushes to JotForm Enterprise)' : '(Opens in JotForm)'}
+                  </span>
                 </h4>
+
+                {/* ── TASK step ── */}
+                {submission.actionType === 'task' && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-400">
+                      This step requires completing a task in JotForm. Click below to open your assigned task directly.
+                    </p>
+                    <a
+                      href={submission.taskUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gold/20 hover:bg-gold/30 text-gold rounded-xl font-semibold text-sm border border-gold/20 transition-all"
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                      View Task in JotForm
+                      <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                    </a>
+                  </div>
+                )}
+
+                {/* ── FORM step ── */}
+                {submission.actionType === 'form' && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-400">
+                      This step requires filling out or completing a form in JotForm. Click below to open it.
+                    </p>
+                    <a
+                      href={submission.formUrl || submission.editLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl font-semibold text-sm border border-blue-500/20 transition-all"
+                    >
+                      <FileEdit className="w-4 h-4" />
+                      View Form in JotForm
+                      <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                    </a>
+                  </div>
+                )}
+
+                {/* ── APPROVAL step ── (existing full flow) */}
+                {submission.actionType === 'approval' && (<>
 
                 {/* Steps indicator */}
                 <div className="flex items-center gap-2 text-xs">
@@ -354,6 +399,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     {pushResult.success ? '✅ Successfully pushed to JotForm Enterprise!' : `❌ ${pushResult.message}`}
                   </div>
                 )}
+                </>)}
               </div>
             )}
 

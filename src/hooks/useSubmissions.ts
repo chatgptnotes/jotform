@@ -1,13 +1,43 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Submission, ApprovalEntry, ApprovalLevel, FilterConfig, SortConfig, PaginationConfig, RefreshConfig } from '../types';
+import { Submission, ApprovalEntry, ApprovalLevel, FilterConfig, SortConfig, PaginationConfig, RefreshConfig, WorkflowActionType } from '../types';
 import { getDashboardStats, getApprovalLevelStats, getDepartmentStats, getTrendData, getBottleneckData, getHeatmapData } from '../services/mockData';
 import { supabase } from '../lib/supabase';
 
-// ─── The live form we track ───────────────────────────────────────────────────
+// ─── Workflow step type cache (per formId) ────────────────────────────────────
+interface WorkflowStep { level: number; type: WorkflowActionType; }
+const workflowCache: Record<string, WorkflowStep[]> = {};
+
+async function fetchWorkflowSteps(formId: string): Promise<WorkflowStep[]> {
+  if (workflowCache[formId]) return workflowCache[formId];
+  try {
+    const res = await fetch(`/api/form-workflow?formId=${formId}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const steps: WorkflowStep[] = (data.steps || []).map((s: WorkflowStep) => ({
+      level: s.level,
+      type: s.type,
+    }));
+    workflowCache[formId] = steps;
+    return steps;
+  } catch {
+    return [];
+  }
+}
+
+function getActionType(steps: WorkflowStep[], currentLevel: number | string): WorkflowActionType {
+  if (typeof currentLevel !== 'number') return 'approval';
+  const step = steps.find(s => s.level === currentLevel);
+  return step?.type ?? 'approval';
+}
+
+// ─── Forms we track ───────────────────────────────────────────────────────────
 const FORM_ID = '260562405560351';
 const FORM_TITLE = 'Purchase Order Approval';
 
-// ─── Field ID map for form 260562405560351 ────────────────────────────────────
+const CONTENT_FORM_ID = '260562114142344';
+const CONTENT_FORM_TITLE = 'Content Publishing Approval Request';
+
+// ─── Field ID map for form 260562405560351 (Purchase Order) ───────────────────
 const FIELD = {
   requesterName: '2', email: '3', department: '4',
   description: '5', amount: '6', priority: '7',
@@ -16,6 +46,13 @@ const FIELD = {
   l3Status: '14', l3Approver: '15', l3Date: '16',
   l4Status: '17', l4Approver: '18', l4Date: '19',
   overallStatus: '20',
+} as const;
+
+// ─── Field ID map for form 260562114142344 (Content Publishing) ───────────────
+const CP_FIELD = {
+  requesterName: '2', email: '3', department: '4',
+  contentType: '5', description: '6', priority: '7',
+  publishDate: '8', attachments: '9', approvalStatus: '10',
 } as const;
 
 // ─── Field extractor ─────────────────────────────────────────────────────────
@@ -36,7 +73,7 @@ function extractText(answer: unknown): string {
 }
 
 // ─── Map a raw JotForm submission to our Submission model ─────────────────────
-function mapJotFormSubmission(raw: Record<string, unknown>): Submission {
+function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: WorkflowStep[] = []): Submission {
   const answers = (raw.answers as Record<string, { answer: unknown; text?: string }>) || {};
   const get = (id: string) => extractText(answers[id]?.answer);
 
@@ -88,6 +125,10 @@ function mapJotFormSubmission(raw: Record<string, unknown>): Submission {
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
 
   const id = String(raw.id);
+  const editLink = String(raw.edit_link || '');
+  const actionType = getActionType(workflowSteps, currentLevel);
+  const taskUrl = `https://eforms.mediaoffice.ae/inbox/${FORM_ID}/${id}`;
+  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${FORM_ID}`;
 
   return {
     id,
@@ -96,6 +137,10 @@ function mapJotFormSubmission(raw: Record<string, unknown>): Submission {
     referenceNumber: `PO-${id.slice(-6)}`,
     title: description,
     description: `${description}${amount ? ' — AED ' + amount : ''}`,
+    editLink: editLink || undefined,
+    actionType,
+    taskUrl,
+    formUrl,
     submittedBy: { name: requesterName || 'Unknown', department, email },
     submissionDate: submissionDate.toISOString().slice(0, 10),
     currentApprovalLevel: currentLevel,
@@ -105,6 +150,62 @@ function mapJotFormSubmission(raw: Record<string, unknown>): Submission {
     overallStatus: totalDays > 7 ? 'critical' : totalDays > 3 ? 'delayed' : 'on-track',
     priority,
     answers: { description, amount, department, email, requester: requesterName },
+  };
+}
+
+// ─── Map a raw Content Publishing submission to our Submission model ──────────
+function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSteps: WorkflowStep[] = []): Submission {
+  const answers = (raw.answers as Record<string, { answer: unknown; text?: string }>) || {};
+  const get = (id: string) => extractText(answers[id]?.answer);
+
+  const requesterName = get(CP_FIELD.requesterName);
+  const email = get(CP_FIELD.email);
+  const department = get(CP_FIELD.department) || 'General';
+  const contentType = get(CP_FIELD.contentType);
+  const description = get(CP_FIELD.description) || 'Content Request';
+  const priorityRaw = (get(CP_FIELD.priority) || 'medium').toLowerCase();
+  const priority = (['urgent', 'high', 'medium', 'low'].find(p => priorityRaw.includes(p)) || 'medium') as 'low' | 'medium' | 'high' | 'urgent';
+  const approvalStatus = get(CP_FIELD.approvalStatus).toLowerCase();
+
+  let currentLevel: ApprovalLevel | 'completed' | 'rejected' = 1;
+  if (approvalStatus.includes('approved') || approvalStatus.includes('complet')) currentLevel = 'completed';
+  else if (approvalStatus.includes('reject') || approvalStatus.includes('denied')) currentLevel = 'rejected';
+
+  const history: ApprovalEntry[] = [{
+    level: 1 as ApprovalLevel,
+    approverName: 'Content Approver',
+    status: currentLevel === 'completed' ? 'approved' : currentLevel === 'rejected' ? 'rejected' : 'pending',
+  }];
+
+  const createdAt = (raw.created_at as string) || '';
+  const submissionDate = createdAt ? new Date(createdAt.replace(' ', 'T') + 'Z') : new Date();
+  const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
+  const id = String(raw.id);
+  const editLink = String(raw.edit_link || '');
+  const actionType = getActionType(workflowSteps, currentLevel);
+  const taskUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
+  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${CONTENT_FORM_ID}`;
+
+  return {
+    id,
+    formId: CONTENT_FORM_ID,
+    formTitle: CONTENT_FORM_TITLE,
+    referenceNumber: `CP-${id.slice(-6)}`,
+    title: `${contentType ? contentType + ' — ' : ''}${description}`,
+    description,
+    editLink: editLink || undefined,
+    actionType,
+    taskUrl,
+    formUrl,
+    submittedBy: { name: requesterName || 'Unknown', department, email },
+    submissionDate: submissionDate.toISOString().slice(0, 10),
+    currentApprovalLevel: currentLevel,
+    approvalHistory: history,
+    daysAtCurrentLevel: totalDays,
+    totalDaysSinceSubmission: totalDays,
+    overallStatus: totalDays > 7 ? 'critical' : totalDays > 3 ? 'delayed' : 'on-track',
+    priority,
+    answers: { description, contentType, department, email, requester: requesterName },
   };
 }
 
@@ -132,13 +233,19 @@ function mapSupabaseRow(row: Record<string, unknown>): Submission {
   const currentLevel: ApprovalLevel | 'completed' | 'rejected' =
     status === 'completed' ? 'completed' : status === 'rejected' ? 'rejected' : (Number(row.current_level) || 1) as ApprovalLevel;
 
+  const sbId = String(row.jotform_submission_id);
+  const sbFormId = String(row.form_id || FORM_ID);
+
   return {
-    id: String(row.jotform_submission_id),
-    formId: String(row.form_id || FORM_ID),
+    id: sbId,
+    formId: sbFormId,
     formTitle: FORM_TITLE,
-    referenceNumber: `PO-${String(row.jotform_submission_id).slice(-6)}`,
+    referenceNumber: `PO-${sbId.slice(-6)}`,
     title: String(row.title || 'Purchase Order'),
     description: String(row.title || 'Purchase Order'),
+    actionType: 'approval' as WorkflowActionType,
+    taskUrl: `https://eforms.mediaoffice.ae/inbox/${sbFormId}/${sbId}`,
+    formUrl: `https://eforms.mediaoffice.ae/${sbFormId}`,
     submittedBy: {
       name: String(row.submitted_by || 'Unknown'),
       department: String(row.department || 'General'),
@@ -152,7 +259,7 @@ function mapSupabaseRow(row: Record<string, unknown>): Submission {
     overallStatus: totalDays > 7 ? 'critical' : totalDays > 3 ? 'delayed' : 'on-track',
     priority: 'medium',
     answers: { description: String(row.title || ''), amount: String((mapped.amount as string) || ''), department: String(row.department || ''), email: String((mapped.email as string) || ''), requester: String(row.submitted_by || '') },
-  };
+  } as Submission;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -180,18 +287,30 @@ export function useSubmissions() {
       // Fire-and-forget — we'll read from Supabase after
       fetch('/api/sync').catch(() => {});
 
-      // Step 2: fetch directly from JotForm (always fresh)
-      const jfRes = await fetch(`/api/jotform?path=form/${FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`);
-      if (jfRes.ok) {
-        const jfData = await jfRes.json();
-        const rows: Record<string, unknown>[] = jfData.content || [];
-        if (rows.length > 0) {
-          const mapped = rows.map(r => mapJotFormSubmission(r));
-          setAllSubmissions(mapped);
-          setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
-          setLoading(false);
-          return;
-        }
+      // Step 2: fetch both forms directly from JotForm (always fresh)
+      const [poRes, cpRes] = await Promise.all([
+        fetch(`/api/jotform?path=form/${FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
+        fetch(`/api/jotform?path=form/${CONTENT_FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
+      ]);
+
+      const poRows: Record<string, unknown>[] = poRes.ok ? ((await poRes.json()).content || []) : [];
+      const cpRows: Record<string, unknown>[] = cpRes.ok ? ((await cpRes.json()).content || []) : [];
+
+      if (poRows.length > 0 || cpRows.length > 0) {
+        // Fetch workflow step configs for both forms (cached after first load)
+        const [poSteps, cpSteps] = await Promise.all([
+          fetchWorkflowSteps(FORM_ID),
+          fetchWorkflowSteps(CONTENT_FORM_ID),
+        ]);
+
+        const mapped = [
+          ...poRows.map(r => mapJotFormSubmission(r, poSteps)),
+          ...cpRows.map(r => mapContentPublishingSubmission(r, cpSteps)),
+        ];
+        setAllSubmissions(mapped);
+        setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
+        setLoading(false);
+        return;
       }
 
       // Fallback: read from Supabase

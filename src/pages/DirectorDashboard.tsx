@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2, XCircle, MessageSquare, Clock, AlertTriangle, User,
   Search, ArrowUpDown, ChevronDown, ChevronUp, FileText, Loader2,
-  TrendingUp, Shield, ExternalLink,
+  TrendingUp, Shield, ExternalLink, ClipboardList, FileEdit,
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useSubmissions } from '../hooks/useSubmissions';
@@ -85,7 +85,10 @@ export default function DirectorDashboard({ data }: Props) {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const dismissedIds = useMemo(() => new Set([...approvedIds, ...rejectedIds]), [approvedIds, rejectedIds]);
 
   // Filter to only submissions pending the director's approval
   const directorSubmissions = useMemo(() => {
@@ -144,21 +147,50 @@ export default function DirectorDashboard({ data }: Props) {
   const avgWait = pendingCount > 0
     ? Math.round(directorSubmissions.reduce((sum, s) => sum + s.daysAtCurrentLevel, 0) / pendingCount)
     : 0;
-  const approvedToday = dismissedIds.size;
+  const approvedToday = approvedIds.size;
 
-  const handleApprove = (sub: Submission) => {
-    // local dismiss only — JotForm update via API not implemented yet
-    addAuditEntry(sub.id, 'approved', 'Director', `Approved at Level ${sub.currentApprovalLevel}`);
-    setDismissedIds(prev => new Set([...prev, sub.id]));
+  const LEVEL_FIELD_MAP: Record<number, { statusField: string; approverField: string; dateField: string }> = {
+    1: { statusField: 'submission[8]',  approverField: 'submission[9]',  dateField: 'submission[10]' },
+    2: { statusField: 'submission[11]', approverField: 'submission[12]', dateField: 'submission[13]' },
+    3: { statusField: 'submission[14]', approverField: 'submission[15]', dateField: 'submission[16]' },
+    4: { statusField: 'submission[17]', approverField: 'submission[18]', dateField: 'submission[19]' },
   };
 
-  const handleReject = (sub: Submission) => {
+  const pushToJotForm = async (sub: Submission, decision: 'approved' | 'rejected', reason?: string) => {
+    if (typeof sub.currentApprovalLevel !== 'number') return;
+    const lvl = sub.currentApprovalLevel;
+    const fields = LEVEL_FIELD_MAP[lvl];
+    if (!fields) throw new Error(`No field map for level ${lvl}`);
+    const today = new Date();
+    const dateStr = `${today.getMonth() + 1}-${String(today.getDate()).padStart(2, '0')}-${today.getFullYear()}`;
+    const params = new URLSearchParams();
+    params.set(fields.statusField, decision === 'approved' ? 'Approved' : 'Rejected');
+    params.set(fields.approverField, reason ? `${currentUser.name}: ${reason}` : currentUser.name);
+    params.set(fields.dateField, dateStr);
+    params.set('submission[20]', decision === 'rejected' ? 'Rejected' : lvl === 4 ? 'Completed' : 'In Progress');
+    const res = await fetch(`/api/jotform-update?submissionId=${sub.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+  };
+
+  const handleReject = async (sub: Submission) => {
     if (!rejectReason.trim()) return;
-    // local dismiss only — JotForm update via API not implemented yet
-    addAuditEntry(sub.id, 'rejected', 'Director', `Rejected: ${rejectReason.trim()}`);
-    setRejectReason('');
-    setRejectingId(null);
-    setDismissedIds(prev => new Set([...prev, sub.id]));
+    setActionLoading(sub.id);
+    try {
+      await pushToJotForm(sub, 'rejected', rejectReason.trim());
+      addAuditEntry(sub.id, 'rejected', currentUser.name, `Rejected: ${rejectReason.trim()}`);
+      setRejectReason('');
+      setRejectingId(null);
+      setRejectedIds(prev => new Set([...prev, sub.id]));
+      data.refresh();
+    } catch (err) {
+      alert(`Rejection failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const toggleSort = (key: typeof sortKey) => {
@@ -335,68 +367,90 @@ export default function DirectorDashboard({ data }: Props) {
                       <StatusBadge status={sub.overallStatus} />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {/* View Filled Submission in JotForm Enterprise */}
-                        <a
-                          href={`https://eforms.mediaoffice.ae/inbox/${sub.formId}/${sub.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-2.5 py-1.5 rounded-lg bg-navy-light/30 text-gray-300 hover:bg-navy-light/50 hover:text-white text-xs font-medium flex items-center gap-1 border border-navy-light/30 transition-colors"
-                          title="View filled submission in JotForm Enterprise"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" /> View Submission
-                        </a>
+                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
 
-                        {/* Approve */}
-                        <button
-                          onClick={() => handleApprove(sub)}
-                          className="px-2.5 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 text-xs font-medium flex items-center gap-1 transition-colors"
-                          title="Approve this submission"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Approve
-                        </button>
-
-                        {/* Reject */}
-                        {rejectingId === sub.id ? (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="text"
-                              value={rejectReason}
-                              onChange={e => setRejectReason(e.target.value)}
-                              onKeyDown={e => e.key === 'Enter' && handleReject(sub)}
-                              placeholder="Reason..."
-                              autoFocus
-                              className="w-28 px-2 py-1 text-xs rounded bg-navy-dark border border-red-500/30 text-white placeholder-gray-600 focus:outline-none"
-                            />
-                            <button onClick={() => handleReject(sub)} className="px-2 py-1 rounded bg-red-500/30 text-red-400 text-xs hover:bg-red-500/40">
-                              OK
-                            </button>
-                            <button onClick={() => { setRejectingId(null); setRejectReason(''); }} className="px-1.5 py-1 text-xs text-gray-500 hover:text-gray-300">
-                              X
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setRejectingId(sub.id)}
-                            className="px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium flex items-center gap-1 border border-red-500/20 transition-colors"
-                            title="Reject and Close"
+                        {/* ── TASK step: single "View Task" button ── */}
+                        {sub.actionType === 'task' && (
+                          <a
+                            href={sub.taskUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 text-xs font-semibold flex items-center gap-1.5 border border-gold/20 transition-colors"
+                            title="Open task in JotForm"
                           >
-                            <XCircle className="w-3.5 h-3.5" /> Reject
-                          </button>
+                            <ClipboardList className="w-3.5 h-3.5" /> View Task
+                          </a>
                         )}
 
-                        {/* Comment */}
-                        <button
-                          onClick={() => setCommentingId(commentingId === sub.id ? null : sub.id)}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 border transition-colors ${
-                            commentingId === sub.id
-                              ? 'bg-blue-500/30 text-blue-300 border-blue-500/30'
-                              : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20'
-                          }`}
-                          title="Require Comments"
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" /> Comment
-                        </button>
+                        {/* ── FORM step: single "View Form" button ── */}
+                        {sub.actionType === 'form' && (
+                          <a
+                            href={sub.formUrl || sub.editLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 text-xs font-semibold flex items-center gap-1.5 border border-blue-500/20 transition-colors"
+                            title="Open form in JotForm"
+                          >
+                            <FileEdit className="w-3.5 h-3.5" /> View Form
+                          </a>
+                        )}
+
+                        {/* ── APPROVAL step: Review + Reject + Comment ── */}
+                        {sub.actionType === 'approval' && (<>
+                          <button
+                            onClick={() => setSelectedSubmission(sub)}
+                            disabled={actionLoading === sub.id}
+                            className="px-2.5 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 disabled:opacity-50 text-xs font-medium flex items-center gap-1 transition-colors"
+                            title={typeof sub.currentApprovalLevel === 'number' && [3,4].includes(sub.currentApprovalLevel) ? 'Review, sign & approve' : 'Review & approve'}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {typeof sub.currentApprovalLevel === 'number' && [3,4].includes(sub.currentApprovalLevel) ? 'Review & Sign' : 'Review & Approve'}
+                          </button>
+
+                          {rejectingId === sub.id ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={rejectReason}
+                                onChange={e => setRejectReason(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleReject(sub)}
+                                placeholder="Reason..."
+                                autoFocus
+                                className="w-28 px-2 py-1 text-xs rounded bg-navy-dark border border-red-500/30 text-white placeholder-gray-600 focus:outline-none"
+                              />
+                              <button
+                                onClick={() => handleReject(sub)}
+                                disabled={!rejectReason.trim() || actionLoading === sub.id}
+                                className="px-2 py-1 rounded bg-red-500/30 text-red-400 text-xs hover:bg-red-500/40 disabled:opacity-50 flex items-center gap-1"
+                              >
+                                {actionLoading === sub.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                OK
+                              </button>
+                              <button onClick={() => { setRejectingId(null); setRejectReason(''); }} className="px-1.5 py-1 text-xs text-gray-500 hover:text-gray-300">
+                                X
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setRejectingId(sub.id)}
+                              className="px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium flex items-center gap-1 border border-red-500/20 transition-colors"
+                            >
+                              <XCircle className="w-3.5 h-3.5" /> Reject
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => setCommentingId(commentingId === sub.id ? null : sub.id)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 border transition-colors ${
+                              commentingId === sub.id
+                                ? 'bg-blue-500/30 text-blue-300 border-blue-500/30'
+                                : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20'
+                            }`}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" /> Comment
+                          </button>
+                        </>)}
+
                       </div>
 
                       {/* Inline Comment Panel */}
@@ -440,6 +494,7 @@ export default function DirectorDashboard({ data }: Props) {
         <SubmissionModal
           submission={selectedSubmission}
           onClose={() => setSelectedSubmission(null)}
+          onUpdate={() => { setSelectedSubmission(null); data.refresh(); }}
         />
       )}
     </div>
