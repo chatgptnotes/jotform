@@ -26,7 +26,7 @@ export default function UserDropdown() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/');
+    navigate('/login');
   };
 
   return (

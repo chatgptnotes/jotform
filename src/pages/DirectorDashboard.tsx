@@ -88,7 +88,21 @@ export default function DirectorDashboard({ data }: Props) {
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [taskUrlLoading, setTaskUrlLoading] = useState<string | null>(null);
   const dismissedIds = useMemo(() => new Set([...approvedIds, ...rejectedIds]), [approvedIds, rejectedIds]);
+
+  const openTaskUrl = async (sub: Submission) => {
+    setTaskUrlLoading(sub.id);
+    try {
+      const res = await fetch(`/api/task-url?formId=${sub.formId}&submissionId=${sub.id}`);
+      const data = await res.json();
+      window.open(data.taskUrl || sub.taskUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      window.open(sub.taskUrl, '_blank', 'noopener,noreferrer');
+    } finally {
+      setTaskUrlLoading(null);
+    }
+  };
 
   // Filter to only submissions pending the director's approval
   const directorSubmissions = useMemo(() => {
@@ -434,15 +448,18 @@ export default function DirectorDashboard({ data }: Props) {
                         {/* ── Secondary: View Task / View Form reference links ── */}
                         <div className="flex items-center justify-center gap-3">
                           {sub.taskUrl && (
-                            <a
-                              href={sub.taskUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-xs text-slate-400 hover:text-gold transition-colors"
+                            <button
+                              onClick={() => openTaskUrl(sub)}
+                              disabled={taskUrlLoading === sub.id}
+                              className="flex items-center gap-1 text-xs text-slate-400 hover:text-gold transition-colors disabled:opacity-50"
                               title="Open task in JotForm"
                             >
-                              <ClipboardList className="w-3 h-3" /> View Task
-                            </a>
+                              {taskUrlLoading === sub.id
+                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                : <ClipboardList className="w-3 h-3" />
+                              }
+                              {taskUrlLoading === sub.id ? 'Loading...' : 'View Task'}
+                            </button>
                           )}
                           {(sub.formUrl || sub.editLink) && (
                             <a

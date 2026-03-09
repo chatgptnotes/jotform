@@ -177,6 +177,7 @@ export function generateMockSubmissions(count: number = 500): Submission[] {
       totalDaysSinceSubmission: totalDays,
       overallStatus: getOverallStatus(daysAtCurrent),
       priority: daysAtCurrent > 30 ? 'urgent' : daysAtCurrent > 14 ? 'high' : daysAtCurrent > 7 ? 'medium' : 'low',
+      actionType: 'approval',
       answers: {},
     };
 
@@ -242,7 +243,7 @@ export function getTrendData(submissions: Submission[]): TrendDataPoint[] {
       s.currentApprovalLevel === 'rejected' &&
       s.approvalHistory.some(a => a.date === dateStr && a.status === 'rejected')
     ).length;
-    points.push({ date: dateStr, submitted: submitted || randomInt(3, 15), completed: completed || randomInt(1, 8), rejected: rejected || randomInt(0, 2) });
+    points.push({ date: dateStr, submitted, completed, rejected });
   }
   return points;
 }
@@ -278,12 +279,27 @@ export function getBottleneckData(submissions: Submission[]): BottleneckData[] {
 import { HeatmapCell } from '../types';
 
 export function getHeatmapData(submissions: Submission[]): HeatmapCell[] {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const displayDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const hours = ['9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM'];
+  // Weight distribution across working hours (bell curve, peak midday)
+  const hourWeights = [0.08, 0.12, 0.15, 0.18, 0.15, 0.13, 0.11, 0.08];
+
+  // Count submissions by day of week from real data
+  const dayCounts: Record<string, number> = {};
+  dayNames.forEach(d => { dayCounts[d] = 0; });
+  submissions.forEach(s => {
+    const date = new Date(s.submissionDate);
+    if (!isNaN(date.getTime())) {
+      dayCounts[dayNames[date.getDay()]]++;
+    }
+  });
+
   const cells: HeatmapCell[] = [];
-  days.forEach(day => {
-    hours.forEach(hour => {
-      cells.push({ day, hour, value: randomInt(0, 25) });
+  displayDays.forEach(day => {
+    const total = dayCounts[day] || 0;
+    hours.forEach((hour, i) => {
+      cells.push({ day, hour, value: Math.round(total * hourWeights[i]) });
     });
   });
   return cells;

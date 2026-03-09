@@ -37,6 +37,9 @@ const FORM_TITLE = 'Purchase Order Approval';
 const CONTENT_FORM_ID = '260562114142344';
 const CONTENT_FORM_TITLE = 'Content Publishing Approval Request';
 
+const TASK_TEST_FORM_ID = '260673958643066';
+const TASK_TEST_FORM_TITLE = 'Task Workflow (Test)';
+
 // ─── Field ID map for form 260562405560351 (Purchase Order) ───────────────────
 const FIELD = {
   requesterName: '2', email: '3', department: '4',
@@ -218,6 +221,60 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
   };
 }
 
+// ─── Map a raw Task Workflow (Test) submission to our Submission model ────────
+// Form 260673958643066 — Level 1: approval, Level 2: task
+// Known fields: Q3=Name (fullname), Q4=Email, Q5=File Upload
+// No explicit approval-status fields — treat all submissions as pending at level 1
+function mapTaskTestSubmission(raw: Record<string, unknown>, workflowSteps: WorkflowStep[] = []): Submission {
+  const answers = (raw.answers as Record<string, { answer: unknown; text?: string }>) || {};
+  const get = (id: string) => extractText(answers[id]?.answer);
+
+  const requesterName = get('3');
+  const email = get('4');
+  const department = 'General';
+
+  // Single pending approval history — no status field to read
+  const currentLevel: ApprovalLevel | 'completed' | 'rejected' = 1;
+  const history: ApprovalEntry[] = [{
+    level: 1 as ApprovalLevel,
+    approverName: 'Approver',
+    status: 'pending',
+  }];
+
+  const createdAt = (raw.created_at as string) || '';
+  const submissionDate = createdAt ? new Date(createdAt.replace(' ', 'T') + 'Z') : new Date();
+  const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysAtCurrentLevel = totalDays;
+
+  const id = String(raw.id);
+  const editLink = String(raw.edit_link || '');
+  const actionType = getActionType(workflowSteps, currentLevel);
+  const taskUrl = `https://eforms.mediaoffice.ae/inbox/${TASK_TEST_FORM_ID}/${id}`;
+  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${TASK_TEST_FORM_ID}`;
+
+  return {
+    id,
+    formId: TASK_TEST_FORM_ID,
+    formTitle: TASK_TEST_FORM_TITLE,
+    referenceNumber: `TT-${id.slice(-6)}`,
+    title: requesterName ? `Task Request — ${requesterName}` : 'Task Request',
+    description: requesterName ? `Task workflow request from ${requesterName}` : 'Task workflow test submission',
+    editLink: editLink || undefined,
+    actionType,
+    taskUrl,
+    formUrl,
+    submittedBy: { name: requesterName || 'Unknown', department, email },
+    submissionDate: submissionDate.toISOString().slice(0, 10),
+    currentApprovalLevel: currentLevel,
+    approvalHistory: history,
+    daysAtCurrentLevel,
+    totalDaysSinceSubmission: totalDays,
+    overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    priority: 'medium',
+    answers: { description: '', department, email, requester: requesterName },
+  };
+}
+
 // ─── Map a Supabase row back to a Submission ──────────────────────────────────
 function mapSupabaseRow(row: Record<string, unknown>): Submission {
   const raw = (row.raw_data as Record<string, unknown>) || {};
@@ -306,25 +363,29 @@ export function useSubmissions() {
       // Step 1: trigger server-side sync (JotForm → Supabase) — best-effort, non-blocking
       fetch('/api/sync').catch(err => console.warn('[JotFlow] Sync failed:', err));
 
-      // Step 2: fetch both forms directly from JotForm (always fresh)
-      const [poRes, cpRes] = await Promise.all([
+      // Step 2: fetch all tracked forms directly from JotForm (always fresh)
+      const [poRes, cpRes, ttRes] = await Promise.all([
         fetch(`/api/jotform?path=form/${FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
         fetch(`/api/jotform?path=form/${CONTENT_FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
+        fetch(`/api/jotform?path=form/${TASK_TEST_FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
       ]);
 
       const poRows: Record<string, unknown>[] = poRes.ok ? ((await poRes.json()).content || []) : [];
       const cpRows: Record<string, unknown>[] = cpRes.ok ? ((await cpRes.json()).content || []) : [];
+      const ttRows: Record<string, unknown>[] = ttRes.ok ? ((await ttRes.json()).content || []) : [];
 
-      if (poRows.length > 0 || cpRows.length > 0) {
-        // Fetch workflow step configs for both forms (cached after first load)
-        const [poSteps, cpSteps] = await Promise.all([
+      if (poRows.length > 0 || cpRows.length > 0 || ttRows.length > 0) {
+        // Fetch workflow step configs for all forms (cached after first load)
+        const [poSteps, cpSteps, ttSteps] = await Promise.all([
           fetchWorkflowSteps(FORM_ID),
           fetchWorkflowSteps(CONTENT_FORM_ID),
+          fetchWorkflowSteps(TASK_TEST_FORM_ID),
         ]);
 
         const mapped = [
           ...poRows.map(r => mapJotFormSubmission(r, poSteps)),
           ...cpRows.map(r => mapContentPublishingSubmission(r, cpSteps)),
+          ...ttRows.map(r => mapTaskTestSubmission(r, ttSteps)),
         ];
         setAllSubmissions(mapped);
         setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));

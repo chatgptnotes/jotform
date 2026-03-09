@@ -32,6 +32,11 @@ const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
   '260562114142344': {
     1: 'approval',  // Content publishing: single approval step
   },
+  // Task workflow for testing (bk683) — approval then task
+  '260673958643066': {
+    1: 'approval',  // Step 1: Approval
+    2: 'task',      // Step 2: Task → View Task button (links to internal task form)
+  },
 };
 
 /**

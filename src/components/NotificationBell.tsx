@@ -29,16 +29,9 @@ const TYPE_COLORS: Record<string, string> = {
   team_invite: 'text-emerald-400',
 };
 
-const DEMO_NOTIFICATIONS: Notification[] = [
-  { id: '1', type: 'approval_needed', title: 'Approval Required', message: 'Leave Request #LR-2024-045 needs your approval', read: false, data: {}, created_at: new Date(Date.now() - 300000).toISOString() },
-  { id: '2', type: 'sla_breach', title: 'SLA Breach Alert', message: 'Procurement #PR-2024-012 exceeded 7-day SLA at Level 3', read: false, data: {}, created_at: new Date(Date.now() - 1800000).toISOString() },
-  { id: '3', type: 'submission', title: 'New Submission', message: 'IT Service Request submitted by Ahmed Al Maktoum', read: false, data: {}, created_at: new Date(Date.now() - 3600000).toISOString() },
-  { id: '4', type: 'escalation', title: 'Escalation Alert', message: 'Travel Auth #TA-2024-008 escalated to Director level', read: true, data: {}, created_at: new Date(Date.now() - 7200000).toISOString() },
-];
-
 export default function NotificationBell() {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>(DEMO_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
