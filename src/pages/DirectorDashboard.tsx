@@ -89,6 +89,7 @@ export default function DirectorDashboard({ data }: Props) {
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [taskUrlLoading, setTaskUrlLoading] = useState<string | null>(null);
+  const [formUrlLoading, setFormUrlLoading] = useState<string | null>(null);
   const dismissedIds = useMemo(() => new Set([...approvedIds, ...rejectedIds]), [approvedIds, rejectedIds]);
 
   const openTaskUrl = async (sub: Submission) => {
@@ -101,6 +102,19 @@ export default function DirectorDashboard({ data }: Props) {
       window.open(sub.taskUrl, '_blank', 'noopener,noreferrer');
     } finally {
       setTaskUrlLoading(null);
+    }
+  };
+
+  const openFormUrl = async (sub: Submission) => {
+    setFormUrlLoading(sub.id);
+    try {
+      const res = await fetch(`/api/form-url?formId=${sub.formId}&submissionId=${sub.id}`);
+      const data = await res.json();
+      window.open(data.formUrl || sub.formUrl || sub.editLink, '_blank', 'noopener,noreferrer');
+    } catch {
+      window.open(sub.formUrl || sub.editLink, '_blank', 'noopener,noreferrer');
+    } finally {
+      setFormUrlLoading(null);
     }
   };
 
@@ -462,15 +476,18 @@ export default function DirectorDashboard({ data }: Props) {
                             </button>
                           )}
                           {(sub.formUrl || sub.editLink) && (
-                            <a
-                              href={sub.formUrl || sub.editLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-400 transition-colors"
+                            <button
+                              onClick={() => openFormUrl(sub)}
+                              disabled={formUrlLoading === sub.id}
+                              className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-400 transition-colors disabled:opacity-50"
                               title="Open form in JotForm"
                             >
-                              <FileEdit className="w-3 h-3" /> View Form
-                            </a>
+                              {formUrlLoading === sub.id
+                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                : <FileEdit className="w-3 h-3" />
+                              }
+                              {formUrlLoading === sub.id ? 'Loading...' : 'View Form'}
+                            </button>
                           )}
                         </div>
                       </div>
