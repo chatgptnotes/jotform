@@ -367,36 +367,9 @@ export default function DirectorDashboard({ data }: Props) {
                       <StatusBadge status={sub.overallStatus} />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
-
-                        {/* ── TASK step: single "View Task" button ── */}
-                        {sub.actionType === 'task' && (
-                          <a
-                            href={sub.taskUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-3 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 text-xs font-semibold flex items-center gap-1.5 border border-gold/20 transition-colors"
-                            title="Open task in JotForm"
-                          >
-                            <ClipboardList className="w-3.5 h-3.5" /> View Task
-                          </a>
-                        )}
-
-                        {/* ── FORM step: single "View Form" button ── */}
-                        {sub.actionType === 'form' && (
-                          <a
-                            href={sub.formUrl || sub.editLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 text-xs font-semibold flex items-center gap-1.5 border border-blue-500/20 transition-colors"
-                            title="Open form in JotForm"
-                          >
-                            <FileEdit className="w-3.5 h-3.5" /> View Form
-                          </a>
-                        )}
-
-                        {/* ── APPROVAL step: Review + Reject + Comment ── */}
-                        {sub.actionType === 'approval' && (<>
+                      <div className="flex flex-col gap-1">
+                        {/* ── Primary: Review + Reject + Comment (always visible) ── */}
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
                           <button
                             onClick={() => setSelectedSubmission(sub)}
                             disabled={actionLoading === sub.id}
@@ -449,8 +422,33 @@ export default function DirectorDashboard({ data }: Props) {
                           >
                             <MessageSquare className="w-3.5 h-3.5" /> Comment
                           </button>
-                        </>)}
+                        </div>
 
+                        {/* ── Secondary: View Task / View Form reference links ── */}
+                        <div className="flex items-center justify-center gap-3">
+                          {sub.taskUrl && (
+                            <a
+                              href={sub.taskUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-xs text-slate-400 hover:text-gold transition-colors"
+                              title="Open task in JotForm"
+                            >
+                              <ClipboardList className="w-3 h-3" /> View Task
+                            </a>
+                          )}
+                          {(sub.formUrl || sub.editLink) && (
+                            <a
+                              href={sub.formUrl || sub.editLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-400 transition-colors"
+                              title="Open form in JotForm"
+                            >
+                              <FileEdit className="w-3 h-3" /> View Form
+                            </a>
+                          )}
+                        </div>
                       </div>
 
                       {/* Inline Comment Panel */}
