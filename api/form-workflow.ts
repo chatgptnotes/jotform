@@ -13,6 +13,28 @@ export interface WorkflowStep {
 }
 
 /**
+ * Manual step-type configuration per form.
+ * This overrides keyword auto-detection.
+ * Key: formId, Value: map of level → StepType
+ *
+ * Use this to configure step types for each form without
+ * needing to rename questions in JotForm.
+ */
+const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
+  // Purchase Order Approval — 4-level workflow
+  '260562405560351': {
+    1: 'form',      // Level 1: Requester fills in a form → View Form button
+    2: 'task',      // Level 2: Finance team processes a task → View Task button
+    3: 'approval',  // Level 3: Director approves + signs → Review & Sign
+    4: 'approval',  // Level 4: Executive final approval + sign → Review & Sign
+  },
+  // Content Publishing Approval — single level
+  '260562114142344': {
+    1: 'approval',  // Content publishing: single approval step
+  },
+};
+
+/**
  * Infer step type from question label text.
  *
  * Rules (first match wins):
@@ -48,6 +70,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const cached = cache[formId];
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
     return res.status(200).json({ formId, steps: cached.steps, cached: true });
+  }
+
+  // Check manual config override first — skips JotForm API call entirely
+  const configuredSteps = STEP_TYPE_CONFIG[formId];
+  if (configuredSteps) {
+    const steps: WorkflowStep[] = Object.entries(configuredSteps).map(([level, type]) => ({
+      level: parseInt(level),
+      type,
+      label: `Level ${level}`,
+      questionId: '',
+    }));
+    cache[formId] = { steps, at: Date.now() };
+    return res.status(200).json({ formId, steps, source: 'config' });
   }
 
   try {
