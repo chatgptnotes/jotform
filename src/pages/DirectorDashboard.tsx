@@ -10,7 +10,7 @@ import { useSubmissions } from '../hooks/useSubmissions';
 import { Submission } from '../types';
 import CommentPanel from '../components/CommentPanel';
 import SubmissionModal from '../components/SubmissionModal';
-import { USER_CONFIGS, DEFAULT_USER_CONFIG } from '../config/currentUser';
+import { getUserConfig } from '../config/currentUser';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
@@ -77,7 +77,7 @@ function LevelBadge({ level }: { level: number }) {
 export default function DirectorDashboard({ data }: Props) {
   const { activeSidebarCategory, addAuditEntry } = useApp();
   const { user } = useAuth();
-  const currentUser = user?.email ? (USER_CONFIGS[user.email] || DEFAULT_USER_CONFIG) : DEFAULT_USER_CONFIG;
+  const currentUser = getUserConfig(user?.email);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<'daysAtCurrentLevel' | 'submissionDate' | 'currentApprovalLevel'>('daysAtCurrentLevel');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');

@@ -7,7 +7,7 @@ import {
 import { Submission } from '../types';
 import jotformApi from '../services/jotformApi';
 import SignaturePad from './SignaturePad';
-import { USER_CONFIGS, DEFAULT_USER_CONFIG } from '../config/currentUser';
+import { getUserConfig } from '../config/currentUser';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
@@ -38,7 +38,7 @@ const SIGNATURE_REQUIRED_LEVELS = [3, 4];
 
 export default function SubmissionModal({ submission, onClose, onUpdate }: Props) {
   const { user } = useAuth();
-  const currentUser = (user?.email && USER_CONFIGS[user.email]) || DEFAULT_USER_CONFIG;
+  const currentUser = getUserConfig(user?.email);
 
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -109,9 +109,16 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
       setUploadingSignature(false);
     }
 
-    const approverNote = signatureUrl
-      ? `${actionLabel} by ${currentUser.name} via JotFlow on ${timestamp} — ${comment.trim()} | Signature: ${signatureUrl}`
-      : `${actionLabel} by ${currentUser.name} via JotFlow on ${timestamp} — ${comment.trim()}`;
+    // Structured note — easy to parse for auditing/reporting
+    const noteParts = [
+      `Action: ${actionLabel}`,
+      `By: ${currentUser.name} (${user?.email || 'unknown'})`,
+      `Via: JotFlow`,
+      `Date: ${timestamp}`,
+      `Comment: ${comment.trim()}`,
+      ...(signatureUrl ? [`Signature: ${signatureUrl}`] : []),
+    ];
+    const approverNote = noteParts.join(' | ');
 
     const updates: Record<string, string> = {
       [fields.statusField]: actionLabel,

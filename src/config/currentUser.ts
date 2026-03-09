@@ -32,9 +32,35 @@ export const USER_CONFIGS: Record<string, UserConfig> = {
 export const DEFAULT_USER_CONFIG: UserConfig = {
   name: 'User',
   role: 'Viewer',
-  approvalLevels: [1, 2, 3, 4],
+  approvalLevels: [],
   nameMatches: [],
-  isAdmin: true,
+  isAdmin: false,
 };
+
+/**
+ * Returns a UserConfig for the given email.
+ * - If email is in USER_CONFIGS, returns that entry.
+ * - Otherwise, builds a default Approver config from the email prefix,
+ *   so new users are never silently locked out as a Viewer.
+ *
+ * TO ADD A NEW USER: add their email as a key in USER_CONFIGS above.
+ */
+export function getUserConfig(email: string | null | undefined): UserConfig {
+  if (!email) return DEFAULT_USER_CONFIG;
+  if (USER_CONFIGS[email]) return USER_CONFIGS[email];
+  // Auto-generate from email prefix (e.g. "sarah.ali@mediaoffice.ae" → "Sarah Ali")
+  const prefix = email.split('@')[0];
+  const name = prefix
+    .split(/[._-]/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+  return {
+    name,
+    role: 'Approver',
+    approvalLevels: [1, 2, 3, 4],
+    nameMatches: [prefix.toLowerCase()],
+    isAdmin: false,
+  };
+}
 
 export const CURRENT_USER = USER_CONFIGS['huzaifa.dawasaz@mediaoffice.ae'];
