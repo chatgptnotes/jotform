@@ -124,11 +124,18 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
   const submissionDate = createdAt ? new Date(createdAt.replace(' ', 'T') + 'Z') : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
 
+  // Days at current level = time since the last approval date, or since submission if at level 1
+  const lastApproval = [...history].reverse().find(h => h.status === 'approved' && h.date);
+  const levelStartDate = lastApproval?.date
+    ? new Date(lastApproval.date.replace(' ', 'T') + (lastApproval.date.includes('T') ? '' : 'Z'))
+    : submissionDate;
+  const daysAtCurrentLevel = Math.floor((Date.now() - levelStartDate.getTime()) / (1000 * 60 * 60 * 24));
+
   const id = String(raw.id);
   const editLink = String(raw.edit_link || '');
   const actionType = getActionType(workflowSteps, currentLevel);
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${FORM_ID}/${id}`;
-  const formUrl = `https://eforms.mediaoffice.ae/inbox/${FORM_ID}/${id}`;
+  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${FORM_ID}`;
 
   return {
     id,
@@ -145,9 +152,9 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
     submissionDate: submissionDate.toISOString().slice(0, 10),
     currentApprovalLevel: currentLevel,
     approvalHistory: history,
-    daysAtCurrentLevel: totalDays,
+    daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
-    overallStatus: totalDays > 7 ? 'critical' : totalDays > 3 ? 'delayed' : 'on-track',
+    overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
     priority,
     answers: { description, amount, department, email, requester: requesterName },
   };
@@ -180,11 +187,13 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
   const createdAt = (raw.created_at as string) || '';
   const submissionDate = createdAt ? new Date(createdAt.replace(' ', 'T') + 'Z') : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
+  // Content publishing is single-level — daysAtCurrentLevel = totalDays
+  const daysAtCurrentLevel = totalDays;
   const id = String(raw.id);
   const editLink = String(raw.edit_link || '');
   const actionType = getActionType(workflowSteps, currentLevel);
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
-  const formUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
+  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${CONTENT_FORM_ID}`;
 
   return {
     id,
@@ -201,9 +210,9 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
     submissionDate: submissionDate.toISOString().slice(0, 10),
     currentApprovalLevel: currentLevel,
     approvalHistory: history,
-    daysAtCurrentLevel: totalDays,
+    daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
-    overallStatus: totalDays > 7 ? 'critical' : totalDays > 3 ? 'delayed' : 'on-track',
+    overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
     priority,
     answers: { description, contentType, department, email, requester: requesterName },
   };
@@ -245,7 +254,7 @@ function mapSupabaseRow(row: Record<string, unknown>): Submission {
     description: String(row.title || 'Purchase Order'),
     actionType: 'approval' as WorkflowActionType,
     taskUrl: `https://eforms.mediaoffice.ae/inbox/${sbFormId}/${sbId}`,
-    formUrl: `https://eforms.mediaoffice.ae/inbox/${sbFormId}/${sbId}`,
+    formUrl: `https://eforms.mediaoffice.ae/${sbFormId}`,
     submittedBy: {
       name: String(row.submitted_by || 'Unknown'),
       department: String(row.department || 'General'),
