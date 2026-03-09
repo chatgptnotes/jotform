@@ -20,6 +20,7 @@ import HelpSupport from './pages/HelpSupport';
 import AdvancedAnalytics from './pages/AdvancedAnalytics';
 import KanbanBoard from './pages/KanbanBoard';
 import DirectorDashboard from './pages/DirectorDashboard';
+import SubmitRequest from './pages/SubmitRequest';
 import { useSubmissions } from './hooks/useSubmissions';
 import { Loader2 } from 'lucide-react';
 
@@ -43,13 +44,22 @@ function ProtectedApp() {
         <Route path="/analytics" element={<AdvancedAnalytics data={data} />} />
         <Route path="/kanban" element={<KanbanBoard data={data} />} />
         <Route path="/director" element={<DirectorDashboard data={data} />} />
+        <Route path="/submit-request" element={<SubmitRequest />} />
       </Routes>
     </Layout>
   );
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  // AUTH TEMPORARILY DISABLED — remove this bypass to re-enable
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-navy-dark flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-gold animate-spin" />
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Table2, AlertTriangle, Settings, RefreshCw, Menu, X, Clock, Zap,
   Users, FileText, CreditCard, HelpCircle, Building2, BarChart3, Kanban,
   FolderOpen, Folder, ChevronRight, ChevronDown, LayoutGrid, Package,
-  DollarSign, Monitor, Scale, Briefcase, Megaphone, ShieldCheck,
+  DollarSign, Monitor, Scale, Briefcase, Megaphone, ShieldCheck, PlusCircle,
 } from 'lucide-react';
 import { RefreshConfig, SidebarCategory } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -108,8 +108,24 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
           </div>
 
           <nav className="flex-1 overflow-y-auto">
-            {/* Section 1: Department Categories */}
+            {/* Submit New Request CTA */}
             <div className="p-4 pb-2">
+              <Link
+                to="/app/submit-request"
+                onClick={() => { setActiveSidebarCategory(null); setSidebarOpen(false); }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-all duration-200 ${
+                  location.pathname === '/app/submit-request'
+                    ? 'bg-gold/20 text-gold border border-gold/30'
+                    : 'bg-gold/10 text-gold border border-gold/20 hover:bg-gold/20'
+                }`}
+              >
+                <PlusCircle className="w-4.5 h-4.5" />
+                <span className="text-sm font-semibold">Submit New Request</span>
+              </Link>
+            </div>
+
+            {/* Section 1: Department Categories */}
+            <div className="px-4 pb-2">
               <p className="text-[10px] uppercase tracking-widest text-gray-600 font-medium mb-2 px-2">Departments</p>
 
               {/* Director's Dashboard link */}
@@ -267,11 +283,24 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Link
+                to="/app/submit-request"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gold/20 hover:bg-gold/30 text-gold text-sm font-semibold transition-all border border-gold/20"
+              >
+                <PlusCircle className="w-4 h-4" />
+                New Request
+              </Link>
               <button
                 onClick={handleRefresh}
-                className="p-2 rounded-xl bg-navy-light/30 hover:bg-navy-light/50 text-gray-400 hover:text-gold transition-all"
+                title="Refresh data"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-navy-light/30 hover:bg-navy-light/50 text-gray-400 hover:text-gold transition-all"
               >
-                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshConfig.autoRefresh && (
+                  <span className="text-[10px] font-semibold text-gold/80 hidden sm:inline">
+                    AUTO {refreshConfig.intervalMinutes}m
+                  </span>
+                )}
               </button>
               <NotificationBell />
               <UserDropdown />
