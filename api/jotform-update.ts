@@ -3,6 +3,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const JOTFORM_BASE = 'https://eforms.mediaoffice.ae/API';
 const API_KEY = process.env.JOTFORM_API_KEY || 'af7787b0b077e0e60e89f9d1fa6101e8';
 
+// Levels that require a digital signature for approval
+const SIGNATURE_REQUIRED_LEVELS = [3, 4];
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -15,17 +18,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!submissionId) return res.status(400).json({ error: 'submissionId required' });
 
   try {
-    const url = `${JOTFORM_BASE}/submission/${submissionId}?apiKey=${API_KEY}`;
-    
-    // Forward the body as form data
-    const body = typeof req.body === 'string' ? req.body : new URLSearchParams(req.body as Record<string, string>).toString();
+    const rawBody = typeof req.body === 'string' ? req.body : new URLSearchParams(req.body as Record<string, string>).toString();
+    const params = new URLSearchParams(rawBody);
 
+    // Extract metadata fields (not forwarded to JotForm)
+    const action = params.get('_action');       // 'approve' | 'reject'
+    const levelStr = params.get('_level');      // e.g. '3'
+    const signatureUrl = params.get('_signatureUrl') || '';
+    params.delete('_action');
+    params.delete('_level');
+    params.delete('_signatureUrl');
+
+    // Server-side: block approval at level 3/4 if no signature URL provided
+    if (action === 'approve' && levelStr) {
+      const level = parseInt(levelStr, 10);
+      if (SIGNATURE_REQUIRED_LEVELS.includes(level) && !signatureUrl) {
+        return res.status(400).json({ error: `Digital signature is required for Level ${level} approval` });
+      }
+    }
+
+    const url = `${JOTFORM_BASE}/submission/${submissionId}?apiKey=${API_KEY}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
+      body: params.toString(),
     });
-    
+
     const data = await response.json();
     return res.status(200).json(data);
   } catch (error) {

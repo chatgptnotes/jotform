@@ -46,6 +46,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   const [pushResult, setPushResult] = useState<{ success: boolean; message: string } | null>(null);
   const [comment, setComment] = useState('');
   const [signature, setSignature] = useState('');
+  // Two-click confirmation: 'approve' | 'reject' | null
+  const [confirmPending, setConfirmPending] = useState<'approve' | 'reject' | null>(null);
 
   const isSubmitting = approving || rejecting || uploadingSignature;
 
@@ -133,7 +135,11 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
       updates['20'] = 'In Progress';
     }
 
-    const result = await jotformApi.updateSubmission(submission.id, updates);
+    const result = await jotformApi.updateSubmission(submission.id, updates, {
+      _action: action,
+      _level: String(lvl),
+      _signatureUrl: signatureUrl,
+    });
     setPushResult(result);
     setApproving(false);
     setRejecting(false);
@@ -151,6 +157,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     setUploadingSignature(false);
     setApproving(false);
     setRejecting(false);
+    setConfirmPending(null);
   }, [submission?.id]);
 
   // Keyboard: Esc to close — blocked while submission is in progress
@@ -367,27 +374,56 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                   </div>
                 )}
 
-                {/* Step 3: Approve / Reject buttons */}
-                <div className="flex gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleApproval('approve')}
-                    disabled={!approveEnabled || isSubmitting}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
-                  >
-                    {(uploadingSignature || approving) ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                    {uploadingSignature ? 'Saving signature...' : approving ? 'Submitting to JotForm...' : 'Approve'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApproval('reject')}
-                    disabled={!rejectEnabled || isSubmitting}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
-                  >
-                    {rejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                    {rejecting ? 'Submitting to JotForm...' : 'Reject'}
-                  </button>
-                </div>
+                {/* Step 3: Approve / Reject — two-click confirmation */}
+                {confirmPending ? (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                    <p className="text-xs text-amber-400 font-medium text-center">
+                      ⚠️ Confirm {confirmPending === 'approve' ? 'Approval' : 'Rejection'} — this cannot be undone
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setConfirmPending(null); handleApproval(confirmPending); }}
+                        disabled={isSubmitting}
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-40 ${
+                          confirmPending === 'approve'
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                            : 'bg-red-600 hover:bg-red-500 text-white'
+                        }`}
+                      >
+                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : confirmPending === 'approve' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                        {uploadingSignature ? 'Saving signature...' : approving || rejecting ? 'Submitting...' : `Yes, ${confirmPending === 'approve' ? 'Approve' : 'Reject'}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmPending(null)}
+                        disabled={isSubmitting}
+                        className="px-4 py-2.5 rounded-xl font-semibold text-sm bg-navy-light/30 text-gray-400 hover:text-white transition-all disabled:opacity-40"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmPending('approve')}
+                      disabled={!approveEnabled || isSubmitting}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
+                    >
+                      <CheckCircle2 className="w-4 h-4" /> Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmPending('reject')}
+                      disabled={!rejectEnabled || isSubmitting}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
+                    >
+                      <XCircle className="w-4 h-4" /> Reject
+                    </button>
+                  </div>
+                )}
 
                 {/* What's still needed */}
                 {(!comment.trim() || (signatureRequired && !signature)) && (

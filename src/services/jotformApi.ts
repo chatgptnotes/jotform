@@ -103,11 +103,21 @@ class JotFormApiService {
     return data.content;
   }
 
-  async updateSubmission(submissionId: string, fields: Record<string, string>): Promise<{ success: boolean; message: string }> {
+  async updateSubmission(
+    submissionId: string,
+    fields: Record<string, string>,
+    meta?: Record<string, string>,  // metadata fields sent without submission[] wrapper
+  ): Promise<{ success: boolean; message: string }> {
     try {
       const params = new URLSearchParams();
       for (const [key, val] of Object.entries(fields)) {
         params.append(`submission[${key}]`, val);
+      }
+      // Metadata fields (e.g. _action, _level, _signatureUrl) go unwrapped
+      if (meta) {
+        for (const [key, val] of Object.entries(meta)) {
+          params.append(key, val);
+        }
       }
       const response = await fetch(`/api/jotform-update?submissionId=${submissionId}`, {
         method: 'POST',

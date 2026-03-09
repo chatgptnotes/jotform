@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2, XCircle, MessageSquare, Clock, AlertTriangle, User,
   Search, ArrowUpDown, ChevronDown, ChevronUp, FileText, Loader2,
-  TrendingUp, Shield, ExternalLink, ClipboardList, FileEdit,
+  TrendingUp, Shield, ExternalLink, ClipboardList, FileEdit, Lock,
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useSubmissions } from '../hooks/useSubmissions';
@@ -368,17 +368,24 @@ export default function DirectorDashboard({ data }: Props) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
-                        {/* ── Primary: Review + Reject + Comment (always visible) ── */}
+                        {/* ── Primary: Review + Reject + Comment ── */}
                         <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                          <button
-                            onClick={() => setSelectedSubmission(sub)}
-                            disabled={actionLoading === sub.id}
-                            className="px-2.5 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 disabled:opacity-50 text-xs font-medium flex items-center gap-1 transition-colors"
-                            title={typeof sub.currentApprovalLevel === 'number' && [3,4].includes(sub.currentApprovalLevel) ? 'Review, sign & approve' : 'Review & approve'}
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            {typeof sub.currentApprovalLevel === 'number' && [3,4].includes(sub.currentApprovalLevel) ? 'Review & Sign' : 'Review & Approve'}
-                          </button>
+                          {/* Only show Approve if user is authorized for this level */}
+                          {typeof sub.currentApprovalLevel === 'number' && (currentUser.isAdmin || currentUser.approvalLevels.includes(sub.currentApprovalLevel)) ? (
+                            <button
+                              onClick={() => setSelectedSubmission(sub)}
+                              disabled={actionLoading === sub.id}
+                              className="px-2.5 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 disabled:opacity-50 text-xs font-medium flex items-center gap-1 transition-colors"
+                              title={[3,4].includes(sub.currentApprovalLevel) ? 'Review, sign & approve' : 'Review & approve'}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              {[3,4].includes(sub.currentApprovalLevel) ? 'Review & Sign' : 'Review & Approve'}
+                            </button>
+                          ) : typeof sub.currentApprovalLevel === 'number' ? (
+                            <span className="px-2.5 py-1.5 rounded-lg bg-gray-500/10 text-gray-600 text-xs font-medium flex items-center gap-1 border border-gray-500/10" title={`Your role cannot approve Level ${sub.currentApprovalLevel}`}>
+                              <Lock className="w-3.5 h-3.5" /> Not your level
+                            </span>
+                          ) : null}
 
                           {rejectingId === sub.id ? (
                             <div className="flex items-center gap-1">
