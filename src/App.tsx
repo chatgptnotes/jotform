@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
 import WorkflowTracker from './pages/WorkflowTracker';
 import BottleneckAnalysis from './pages/BottleneckAnalysis';
 import ApprovalDetail from './pages/ApprovalDetail';

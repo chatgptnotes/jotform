@@ -161,7 +161,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   };
 
   const openTaskUrl = () => {
-    if (!submission) return;
+    if (!submission?.taskUrl) return;
     // Link to main form's inbox for this submission — the native JotForm
     // "View Task" button on that page leads to the actual task completion URL.
     // (JotForm does not expose the approval-form task URL via API.)
@@ -169,7 +169,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   };
 
   const openFormUrl = () => {
-    if (!submission) return;
+    if (!submission?.formUrl) return;
     // Link to main form's inbox for this submission — the native JotForm
     // "View This Form" button on that page leads to the actual form-fill URL.
     // (JotForm does not expose the internal form-fill URL per-submission via API.)
@@ -212,7 +212,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-        onClick={onClose}
+        onClick={isSubmitting ? undefined : onClose}
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}

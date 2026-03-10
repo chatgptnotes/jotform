@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 const JOTFORM_BASE = 'https://eforms.mediaoffice.ae/API';
-const API_KEY = process.env.JOTFORM_API_KEY || 'af7787b0b077e0e60e89f9d1fa6101e8';
+const API_KEY = process.env.JOTFORM_API_KEY;
 const FORM_ID = process.env.JOTFORM_FORM_ID || '260562405560351';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://eekudqlzzklhyhwkqvme.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -108,6 +108,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  if (!API_KEY) {
+    return res.status(500).json({ error: 'JOTFORM_API_KEY environment variable is not set' });
+  }
 
   try {
     // Fetch all submissions from JotForm

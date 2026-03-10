@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const JOTFORM_BASE = 'https://eforms.mediaoffice.ae/API';
-const API_KEY = process.env.JOTFORM_API_KEY || 'af7787b0b077e0e60e89f9d1fa6101e8';
+const API_KEY = process.env.JOTFORM_API_KEY;
 
 export type StepType = 'approval' | 'task' | 'form';
 
@@ -88,6 +88,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }));
     cache[formId] = { steps, at: Date.now() };
     return res.status(200).json({ formId, steps, source: 'config' });
+  }
+
+  if (!API_KEY) {
+    // Return empty steps so the frontend falls back to 'approval' default
+    return res.status(200).json({ formId, steps: [], source: 'no-api-key' });
   }
 
   try {

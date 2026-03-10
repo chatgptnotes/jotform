@@ -136,6 +136,9 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
 
   const id = String(raw.id);
   const editLink = String(raw.edit_link || '');
+  // For completed/rejected submissions currentLevel is a string — getActionType
+  // returns 'approval' for those (non-number), but the modal guards on
+  // typeof currentApprovalLevel === 'number', so no action section is shown.
   const actionType = getActionType(workflowSteps, currentLevel);
   // Both taskUrl and formUrl point to the main form's inbox for this submission.
   // From the inbox, JotForm shows the appropriate native action button
@@ -194,10 +197,14 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
   const parseUTC = (s: string) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
   const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
-  // Content publishing is single-level — daysAtCurrentLevel = totalDays
-  const daysAtCurrentLevel = totalDays;
+  // For pending submissions, daysAtCurrentLevel = totalDays (single-level form).
+  // For completed/rejected submissions, they are no longer waiting — use 0 so
+  // they don't incorrectly appear as "critical" in the aging column.
+  const daysAtCurrentLevel = typeof currentLevel === 'number' ? totalDays : 0;
   const id = String(raw.id);
   const editLink = String(raw.edit_link || '');
+  // For completed/rejected submissions getActionType returns 'approval' (non-number
+  // currentLevel) — the modal's typeof guard prevents showing action buttons.
   const actionType = getActionType(workflowSteps, currentLevel);
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
   const formUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;

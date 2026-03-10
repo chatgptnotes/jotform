@@ -86,6 +86,15 @@ export default function DirectorDashboard({ data }: Props) {
   const [rejectReason, setRejectReason] = useState('');
   const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+
+  // When opening the detail modal, clear any inline reject state so the
+  // reject input for a different row doesn't stay open in the background.
+  const openModal = (sub: Submission) => {
+    setRejectingId(null);
+    setConfirmRejectId(null);
+    setRejectReason('');
+    setSelectedSubmission(sub);
+  };
   const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -98,9 +107,10 @@ export default function DirectorDashboard({ data }: Props) {
     try {
       const res = await fetch(`/api/task-url?formId=${sub.formId}&submissionId=${sub.id}`);
       const data = await res.json();
-      window.open(data.taskUrl || sub.taskUrl, '_blank', 'noopener,noreferrer');
+      const url = data.taskUrl || sub.taskUrl;
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
-      window.open(sub.taskUrl, '_blank', 'noopener,noreferrer');
+      if (sub.taskUrl) window.open(sub.taskUrl, '_blank', 'noopener,noreferrer');
     } finally {
       setTaskUrlLoading(null);
     }
@@ -111,9 +121,11 @@ export default function DirectorDashboard({ data }: Props) {
     try {
       const res = await fetch(`/api/form-url?formId=${sub.formId}&submissionId=${sub.id}`);
       const data = await res.json();
-      window.open(data.formUrl || sub.formUrl || sub.editLink, '_blank', 'noopener,noreferrer');
+      const url = data.formUrl || sub.formUrl || sub.editLink;
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
-      window.open(sub.formUrl || sub.editLink, '_blank', 'noopener,noreferrer');
+      const url = sub.formUrl || sub.editLink;
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
     } finally {
       setFormUrlLoading(null);
     }
@@ -168,7 +180,7 @@ export default function DirectorDashboard({ data }: Props) {
     });
 
     return subs;
-  }, [data.allSubmissions, activeSidebarCategory, search, sortKey, sortDir, dismissedIds]);
+  }, [data.allSubmissions, activeSidebarCategory, search, sortKey, sortDir, dismissedIds, currentUser]);
 
   // Stats
   const pendingCount = directorSubmissions.length;
@@ -187,6 +199,10 @@ export default function DirectorDashboard({ data }: Props) {
 
   const pushToJotForm = async (sub: Submission, decision: 'approved' | 'rejected', reason?: string) => {
     if (typeof sub.currentApprovalLevel !== 'number') return;
+    // The inline LEVEL_FIELD_MAP only applies to the Purchase Order form.
+    // Content Publishing and Task Test forms use different field layouts and
+    // cannot be actioned via this quick-reject path; they must use SubmissionModal.
+    if (sub.formId !== '260562405560351') throw new Error(`Quick reject is only supported for Purchase Order submissions. Please open the detail modal to action this submission.`);
     const lvl = sub.currentApprovalLevel;
     const fields = LEVEL_FIELD_MAP[lvl];
     if (!fields) throw new Error(`No field map for level ${lvl}`);
@@ -354,7 +370,7 @@ export default function DirectorDashboard({ data }: Props) {
                   >
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => setSelectedSubmission(sub)}
+                        onClick={() => openModal(sub)}
                         className="text-sm font-mono text-gold hover:underline block"
                       >
                         {sub.referenceNumber.split('-').pop()}
@@ -424,7 +440,7 @@ export default function DirectorDashboard({ data }: Props) {
                             <div className="flex items-center justify-center gap-1.5 flex-wrap">
                               {typeof sub.currentApprovalLevel === 'number' && (currentUser.isAdmin || currentUser.approvalLevels.includes(sub.currentApprovalLevel)) ? (
                                 <button
-                                  onClick={() => setSelectedSubmission(sub)}
+                                  onClick={() => openModal(sub)}
                                   disabled={actionLoading === sub.id}
                                   className="px-2.5 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 disabled:opacity-50 text-xs font-medium flex items-center gap-1 transition-colors"
                                   title={[3,4].includes(sub.currentApprovalLevel) ? 'Review, sign & approve' : 'Review & approve'}
