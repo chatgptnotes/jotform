@@ -2,126 +2,233 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Theme CSS variables ── */
+/* ── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* ── Theme CSS Variables ──────────────────────────────────────────────────── */
 :root {
+  /* Dark mode (default) – same navy palette as before */
   --navy:       #1B2A4A;
   --navy-light: #243656;
   --navy-dark:  #0C1226;
+
+  /* JotForm brand */
+  --jf-blue:    #0075E3;
+  --jf-orange:  #FF6100;
+  --jf-green:   #00B695;
+  --jf-navy:    #0A1551;
 }
 
+/* Light mode: JotForm-inspired */
 .light-mode {
-  --navy:       #E8EFF8;
-  --navy-light: #D0DCF0;
-  --navy-dark:  #F4F7FC;
+  --navy:       #ffffff;
+  --navy-light: #e3e5f5;
+  --navy-dark:  #f3f7ff;
 }
 
+/* ── Base ─────────────────────────────────────────────────────────────────── */
 @layer base {
+  * { box-sizing: border-box; }
+
+  html {
+    font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
     @apply bg-navy-dark text-white font-sans antialiased;
+    font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
   }
 
-  /* Light mode: body */
+  /* ── Light mode: body ── */
   .light-mode body {
-    @apply text-navy-800;
-    background-color: #F1F5F9;
+    background-color: #f3f7ff;
+    color: #0A1551;
   }
 
-  /* Light mode: invert white/light text */
-  .light-mode .text-white   { color: #1B2A4A !important; }
-  .light-mode .text-gray-300 { color: #475569 !important; }
-  .light-mode .text-gray-400 { color: #64748B !important; }
-  .light-mode .text-gray-500 { color: #94A3B8 !important; }
-  .light-mode .text-gray-600 { color: #94A3B8 !important; }
+  /* ── Light mode: typography overrides ── */
+  .light-mode .text-white          { color: #0A1551 !important; }
+  .light-mode .text-gray-100       { color: #1e2a4a !important; }
+  .light-mode .text-gray-200       { color: #2d3a5a !important; }
+  .light-mode .text-gray-300       { color: #3d4f70 !important; }
+  .light-mode .text-gray-400       { color: #494f67 !important; }
+  .light-mode .text-gray-500       { color: #757ea7 !important; }
+  .light-mode .text-gray-600       { color: #9ba3c8 !important; }
 
-  /* Light mode: borders */
-  .light-mode .border-navy-light\/10 { border-color: rgba(203,213,225,0.4) !important; }
-  .light-mode .border-navy-light\/20 { border-color: rgba(203,213,225,0.6) !important; }
-  .light-mode .border-navy-light\/30 { border-color: rgba(203,213,225,0.8) !important; }
+  /* ── Light mode: borders ── */
+  .light-mode .border-navy-light\/10 { border-color: rgba(193,197,226,0.3) !important; }
+  .light-mode .border-navy-light\/15 { border-color: rgba(193,197,226,0.4) !important; }
+  .light-mode .border-navy-light\/20 { border-color: rgba(193,197,226,0.5) !important; }
+  .light-mode .border-navy-light\/30 { border-color: rgba(193,197,226,0.7) !important; }
+  .light-mode .border-navy-light\/50 { border-color: #C1C5E2 !important; }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { @apply bg-navy-dark; }
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { @apply bg-navy-light rounded-full; }
   ::-webkit-scrollbar-thumb:hover { @apply bg-navy-200; }
-
-  .light-mode ::-webkit-scrollbar-track { background-color: #E2E8F0; }
-  .light-mode ::-webkit-scrollbar-thumb { background-color: #94A3B8; }
+  .light-mode ::-webkit-scrollbar-thumb { background-color: #C1C5E2; }
 }
 
+/* ── Components ───────────────────────────────────────────────────────────── */
 @layer components {
+
+  /* ─ Glass card (dark default) ─ */
   .glass-card {
-    background-color: rgba(27, 42, 74, 0.80); /* navy dark-mode default */
-    border: 1px solid rgba(36, 54, 86, 0.30); /* navy-light/30 */
+    background-color: rgba(27, 42, 74, 0.80);
+    border: 1px solid rgba(36, 54, 86, 0.30);
     @apply backdrop-blur-xl rounded-2xl shadow-xl;
   }
   .glass-card-hover {
     @apply glass-card hover:border-gold/30 transition-all duration-300 hover:shadow-gold/5 hover:shadow-2xl;
   }
+
+  /* ─ Light mode: JotForm-style white card ─ */
+  .light-mode .glass-card {
+    background-color: #ffffff !important;
+    border: 1px solid #C1C5E2 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 8px rgba(10, 21, 81, 0.07) !important;
+    backdrop-filter: none !important;
+  }
+  .light-mode .glass-card-hover:hover {
+    border-color: var(--jf-blue) !important;
+    box-shadow: 0 4px 16px rgba(0, 117, 227, 0.12) !important;
+  }
+
+  /* ─ Gradient helpers ─ */
   .gold-gradient {
     background: linear-gradient(135deg, #D4A843 0%, #E4C373 50%, #D4A843 100%);
+  }
+  .jf-blue-gradient {
+    background: linear-gradient(135deg, #0075E3 0%, #2196F3 100%);
   }
   .navy-gradient {
     background: linear-gradient(135deg, #1B2A4A 0%, #243656 50%, #1B2A4A 100%);
   }
-  .status-on-track {
-    @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30;
-  }
-  .status-delayed {
-    @apply bg-amber-500/20 text-amber-400 border border-amber-500/30;
-  }
-  .status-critical {
-    @apply bg-red-500/20 text-red-400 border border-red-500/30;
-  }
+
+  /* ─ Status badges ─ */
+  .status-on-track  { @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30; }
+  .status-delayed   { @apply bg-amber-500/20 text-amber-400 border border-amber-500/30; }
+  .status-critical  { @apply bg-red-500/20 text-red-400 border border-red-500/30; }
+
+  .light-mode .status-on-track  { background-color: #e6faf6 !important; color: #008f75 !important; border-color: #00b69540 !important; }
+  .light-mode .status-delayed   { background-color: #fff7e6 !important; color: #b45309 !important; border-color: #f59e0b40 !important; }
+  .light-mode .status-critical  { background-color: #fff0f0 !important; color: #dc2626 !important; border-color: #ef444440 !important; }
+
+  /* ─ Buttons (dark default) ─ */
   .btn-gold {
     @apply px-4 py-2 rounded-xl font-semibold text-navy-dark gold-gradient hover:opacity-90 transition-opacity shadow-lg shadow-gold/20;
   }
   .btn-outline {
-    border: 1px solid rgba(36, 54, 86, 0.50); /* navy-light/50 */
+    border: 1px solid rgba(36, 54, 86, 0.50);
     @apply px-4 py-2 rounded-xl font-semibold text-gray-300 hover:border-gold/50 hover:text-gold transition-all;
   }
 
-  /* Light mode: glass-card becomes a white card */
-  .light-mode .glass-card {
-    background-color: rgba(255,255,255,0.92) !important;
-    border-color: rgba(203,213,225,0.7) !important;
-    box-shadow: 0 4px 24px rgba(30,58,100,0.08) !important;
+  /* ─ Light mode: JotForm button style ─ */
+  .light-mode .btn-gold {
+    background: var(--jf-blue) !important;
+    background-image: none !important;
+    color: white !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
   }
-
-  /* Light mode: btn-outline text fix */
+  .light-mode .btn-gold:hover {
+    background-color: #005BB5 !important;
+  }
   .light-mode .btn-outline {
-    @apply text-navy-700 border-slate-300 hover:border-gold/60 hover:text-gold;
+    border-color: #C1C5E2 !important;
+    color: #0A1551 !important;
+    border-radius: 4px !important;
+  }
+  .light-mode .btn-outline:hover {
+    border-color: var(--jf-blue) !important;
+    color: var(--jf-blue) !important;
   }
 
-  /* Light mode: header */
+  /* ─ Light mode: sidebar stays dark (JotForm-style dark navy sidebar) ─ */
+  /* INTENTIONALLY NOT overriding aside background — sidebar stays dark navy */
+
+  /* ─ Light mode: header ─ */
   .light-mode header.sticky {
-    background-color: rgba(248,250,252,0.92) !important;
-    border-color: rgba(203,213,225,0.5) !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border-bottom-color: #C1C5E2 !important;
+    backdrop-filter: blur(8px) !important;
+  }
+  /* header title & subtitle in light mode */
+  .light-mode header h2  { color: #0A1551 !important; }
+  .light-mode header p   { color: #757ea7 !important; }
+
+  /* ─ Light mode: inputs ─ */
+  .light-mode input[type="text"],
+  .light-mode input[type="email"],
+  .light-mode input[type="url"],
+  .light-mode input[type="search"],
+  .light-mode input[type="date"],
+  .light-mode input[type="password"],
+  .light-mode textarea,
+  .light-mode select {
+    background-color: #ffffff !important;
+    border-color: #C1C5E2 !important;
+    color: #0A1551 !important;
+    border-radius: 4px !important;
+  }
+  .light-mode input::placeholder,
+  .light-mode textarea::placeholder { color: #9ba3c8 !important; }
+  .light-mode input:focus,
+  .light-mode textarea:focus,
+  .light-mode select:focus {
+    border-color: var(--jf-blue) !important;
+    box-shadow: 0 0 0 3px rgba(0, 117, 227, 0.12) !important;
+    outline: none !important;
   }
 
-  /* Light mode: sidebar */
-  .light-mode aside {
-    background-color: #EEF2F9 !important;
-    border-color: rgba(203,213,225,0.6) !important;
-  }
+  /* ─ Light mode: table rows ─ */
+  .light-mode tr:hover td { background-color: #f0f4ff !important; }
 
-  /* Light mode: sidebar hover states */
+  /* ─ Light mode: sidebar item hover ─ */
   .light-mode .hover\:bg-navy-light\/30:hover {
-    background-color: rgba(203,213,225,0.4) !important;
+    background-color: rgba(255,255,255,0.08) !important;
   }
   .light-mode .hover\:bg-navy-light\/20:hover {
-    background-color: rgba(203,213,225,0.3) !important;
-  }
-  .light-mode .hover\:text-white:hover {
-    color: #1B2A4A !important;
+    background-color: rgba(255,255,255,0.06) !important;
   }
 
-  /* Light mode: select / input backgrounds */
-  .light-mode select,
-  .light-mode input[type="text"],
-  .light-mode input[type="search"],
-  .light-mode textarea {
-    background-color: #F8FAFC !important;
-    border-color: #CBD5E1 !important;
-    color: #1B2A4A !important;
+  /* ─ Light mode: backdrop for modals ─ */
+  .light-mode .bg-navy-dark\/80,
+  .light-mode .bg-navy-dark\/95 {
+    background-color: rgba(255,255,255,0.97) !important;
   }
+
+  /* ─ Light mode: page-level bg helpers ─ */
+  .light-mode .bg-navy-dark  { background-color: #f3f7ff !important; }
+  .light-mode .bg-navy       { background-color: #ffffff !important; }
+  .light-mode .bg-navy-light\/30 { background-color: rgba(193,197,226,0.15) !important; }
+  .light-mode .bg-navy-light\/5  { background-color: rgba(193,197,226,0.06) !important; }
+  .light-mode .bg-navy-light\/20 { background-color: rgba(193,197,226,0.12) !important; }
+
+  /* ─ Light mode: gold accent → jf-blue ─ */
+  .light-mode .text-gold         { color: var(--jf-blue) !important; }
+  .light-mode .border-gold\/20   { border-color: rgba(0,117,227,0.2) !important; }
+  .light-mode .border-gold\/30   { border-color: rgba(0,117,227,0.3) !important; }
+  .light-mode .border-gold\/50   { border-color: rgba(0,117,227,0.5) !important; }
+  .light-mode .bg-gold\/10       { background-color: rgba(0,117,227,0.07) !important; }
+  .light-mode .bg-gold\/20       { background-color: rgba(0,117,227,0.10) !important; }
+  .light-mode .bg-gold\/30       { background-color: rgba(0,117,227,0.15) !important; }
+  .light-mode .hover\:text-gold:hover  { color: var(--jf-blue) !important; }
+  .light-mode .hover\:border-gold\/50:hover { border-color: rgba(0,117,227,0.5) !important; }
+
+  /* ─ Light mode: gold badge/icon text ─ */
+  .light-mode .text-gold     { color: var(--jf-blue) !important; }
+
+  /* ─ Light mode: navy bg elements used for code/form areas ─ */
+  .light-mode .bg-navy-light\/30 { background-color: rgba(193,197,226,0.15) !important; }
+
+  /* ─ Light mode: animated pulse skeleton ─ */
+  .light-mode .bg-navy-light\/20 { background-color: rgba(193,197,226,0.2) !important; }
+
+  /* ─ Light mode: toggle buttons ─ */
+  .light-mode .bg-gold     { background-color: var(--jf-blue) !important; }
+  .light-mode .bg-navy-light { background-color: #C1C5E2 !important; }
 }

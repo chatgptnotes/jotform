@@ -100,17 +100,22 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
   return (
     <div className="min-h-screen flex">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-navy border-r border-navy-light/20 transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      {/* Sidebar always dark — uses JotForm's exact navy #0A1551 so it stays dark in both themes */}
+      <aside style={{ backgroundColor: '#0A1551' }} className={`fixed inset-y-0 left-0 z-50 w-72 border-r border-white/10 transform transition-transform duration-300 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 border-b border-navy-light/20">
+          {/* Logo — JotForm-style branding */}
+          <div className="p-5 border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl gold-gradient flex items-center justify-center">
-                <Zap className="w-5 h-5 text-navy-dark" />
+              {/* JotForm-style logo mark: orange square with white J */}
+              <div className="w-9 h-9 rounded-[6px] flex items-center justify-center flex-shrink-0" style={{ background: '#FF6100' }}>
+                <span className="text-white font-black text-lg leading-none" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>J</span>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white">JotFlow</h1>
-                <p className="text-xs text-gold truncate max-w-[160px]">{organization?.name || 'Workflow Dashboard'}</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-white font-bold text-base tracking-tight">Jot</span>
+                  <span className="font-bold text-base tracking-tight" style={{ color: '#FF6100' }}>Flow</span>
+                </div>
+                <p className="text-[10px] text-white/50 truncate max-w-[160px] leading-tight">{organization?.name || 'Workflow Dashboard'}</p>
               </div>
             </div>
           </div>
@@ -134,7 +139,7 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
 
             {/* Section 1: Department Categories */}
             <div className="px-4 pb-2">
-              <p className="text-[10px] uppercase tracking-widest text-gray-600 font-medium mb-2 px-2">Departments</p>
+              <p className="text-[10px] uppercase tracking-widest text-white/40 font-semibold mb-2 px-2">Departments</p>
 
               {/* Director's Dashboard link */}
               <Link
@@ -211,9 +216,9 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
             </div>
 
             {/* Section 2: Workflows */}
-            <div className="mx-4 border-t border-navy-light/15 my-2" />
+            <div className="mx-4 border-t border-white/10 my-2" />
             <div className="px-4 pb-2">
-              <p className="text-[10px] uppercase tracking-widest text-gray-600 font-medium mb-2 px-2">Workflows</p>
+              <p className="text-[10px] uppercase tracking-widest text-white/40 font-semibold mb-2 px-2">Workflows</p>
 
               {/* All Workflows */}
               <button
@@ -259,11 +264,11 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
             </div>
 
             {/* Separator */}
-            <div className="mx-4 border-t border-navy-light/15 my-2" />
+            <div className="mx-4 border-t border-white/10 my-2" />
 
             {/* Section 3: Tools */}
             <div className="px-4 pt-1 pb-4 space-y-0.5">
-              <p className="text-[10px] uppercase tracking-widest text-gray-600 font-medium mb-2 px-2">Tools</p>
+              <p className="text-[10px] uppercase tracking-widest text-white/40 font-semibold mb-2 px-2">Tools</p>
               {TOOL_NAV.map(item => {
                 const active = location.pathname === item.path;
                 return (
@@ -286,10 +291,10 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
           </nav>
 
           {/* Refresh Controls */}
-          <div className="p-4 border-t border-navy-light/20">
-            <div className="glass-card p-3 space-y-2">
+          <div className="p-4 border-t border-white/10">
+            <div className="p-3 space-y-2 rounded-lg bg-white/5 border border-white/10">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">Auto Refresh</span>
+                <span className="text-[10px] text-white/50 font-medium uppercase tracking-wide">Auto Refresh</span>
                 <button
                   onClick={() => setRefreshConfig(prev => ({ ...prev, autoRefresh: !prev.autoRefresh }))}
                   className={`w-9 h-5 rounded-full transition-colors ${refreshConfig.autoRefresh ? 'bg-gold' : 'bg-navy-light'} relative`}
@@ -301,7 +306,7 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
                 <select
                   value={refreshConfig.intervalMinutes}
                   onChange={e => setRefreshConfig(prev => ({ ...prev, intervalMinutes: Number(e.target.value) }))}
-                  className="w-full bg-navy-dark border border-navy-light/30 rounded-lg px-2 py-1 text-xs text-gray-300"
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-xs text-white"
                 >
                   <option value={5}>Every 5 min</option>
                   <option value={15}>Every 15 min</option>
@@ -309,7 +314,7 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
                 </select>
               )}
               {refreshConfig.lastUpdated && (
-                <div className="flex items-center gap-1 text-[10px] text-gray-600">
+                <div className="flex items-center gap-1 text-[10px] text-white/30">
                   <Clock className="w-2.5 h-2.5" />
                   <span>Updated {new Date(refreshConfig.lastUpdated).toLocaleTimeString()}</span>
                 </div>

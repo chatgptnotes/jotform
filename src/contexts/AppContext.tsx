@@ -151,7 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>('en');
   const [viewRole, setViewRole] = useState<ViewRole>('manager');
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    try { return (localStorage.getItem('themeMode') as ThemeMode) || 'dark'; } catch { return 'dark'; }
+    try { return (localStorage.getItem('themeMode') as ThemeMode) || 'light'; } catch { return 'light'; }
   });
   const [watchlist, setWatchlist] = useState<WatchedItem[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
