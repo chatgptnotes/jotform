@@ -25,13 +25,34 @@ const levelColors: Record<string, string> = {
   'rejected': 'bg-gray-500',
 };
 
-// Map approval level numbers to JotForm question IDs for the Purchase Order form
-const LEVEL_FIELD_MAP: Record<number, { statusField: string; approverField: string }> = {
-  1: { statusField: '8', approverField: '9' },
-  2: { statusField: '11', approverField: '12' },
-  3: { statusField: '14', approverField: '15' },
-  4: { statusField: '17', approverField: '18' },
-};
+// Form-specific field maps for approval actions.
+// Purchase Order form (260562405560351) has 4 approval levels, each with their own status + approver fields.
+// Content Publishing form (260562114142344) has a single approvalStatus field at id 10.
+// Other forms are not supported for direct approval from JotFlow.
+
+const PO_FORM_ID = '260562405560351';
+const CP_FORM_ID = '260562114142344';
+
+type FieldMap = { statusField: string; approverField: string | null; overallStatusField: string | null };
+
+function getFieldMap(formId: string, level: number): FieldMap | null {
+  if (formId === PO_FORM_ID) {
+    const po: Record<number, { statusField: string; approverField: string }> = {
+      1: { statusField: '8',  approverField: '9'  },
+      2: { statusField: '11', approverField: '12' },
+      3: { statusField: '14', approverField: '15' },
+      4: { statusField: '17', approverField: '18' },
+    };
+    const m = po[level];
+    return m ? { ...m, overallStatusField: '20' } : null;
+  }
+  if (formId === CP_FORM_ID && level === 1) {
+    // Content Publishing: single field (id 10) stores approval status.
+    // No separate approver field — don't overwrite other fields.
+    return { statusField: '10', approverField: null, overallStatusField: null };
+  }
+  return null; // unsupported form — caller shows an error
+}
 
 // Director-level approvals require signature
 const SIGNATURE_REQUIRED_LEVELS = [3, 4];
@@ -67,9 +88,9 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     setPushResult(null);
 
     const lvl = submission.currentApprovalLevel;
-    const fields = LEVEL_FIELD_MAP[lvl];
+    const fields = getFieldMap(submission.formId, lvl);
     if (!fields) {
-      setPushResult({ success: false, message: `No field mapping for level ${lvl}` });
+      setPushResult({ success: false, message: `Direct approval is not supported for this form (${submission.formId}). Please action it in JotForm directly.` });
       setApproving(false);
       setRejecting(false);
       return;
@@ -135,15 +156,16 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
 
     const updates: Record<string, string> = {
       [fields.statusField]: actionLabel,
-      [fields.approverField]: approverNote,
     };
-
-    if (action === 'reject') {
-      updates['20'] = 'Rejected';
-    } else if (lvl === 4) {
-      updates['20'] = 'Completed';
-    } else {
-      updates['20'] = 'In Progress';
+    // Only set the approver note if this form has a separate approver field
+    if (fields.approverField && fields.approverField !== fields.statusField) {
+      updates[fields.approverField] = approverNote;
+    }
+    // Only update the overall status field if this form has one
+    if (fields.overallStatusField) {
+      if (action === 'reject') updates[fields.overallStatusField] = 'Rejected';
+      else if (lvl === 4) updates[fields.overallStatusField] = 'Completed';
+      else updates[fields.overallStatusField] = 'In Progress';
     }
 
     const result = await jotformApi.updateSubmission(submission.id, updates, {
@@ -289,7 +311,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                 <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
                   <Send className="w-4 h-4 text-gold" />
                   {submission.actionType === 'task' ? 'Task Action' :
-                   submission.actionType === 'form' ? 'Form Action' :
+                   submission.actionType === 'form' ? 'Complete Form' :
                    `Take Action — Level ${submission.currentApprovalLevel}`}
                   <span className="text-xs text-gray-500 font-normal ml-2">
                     {submission.actionType === 'approval' ? '(Pushes to JotForm Enterprise)' : '(Opens in JotForm)'}
@@ -324,7 +346,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                       className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl font-semibold text-sm border border-blue-500/20 transition-all"
                     >
                       <FileEdit className="w-4 h-4" />
-                      View Form in JotForm
+                      Complete Form in JotForm
                       <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                     </button>
                   </div>
