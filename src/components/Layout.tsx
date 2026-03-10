@@ -6,7 +6,7 @@ import {
   Users, FileText, CreditCard, HelpCircle, Building2, BarChart3, Kanban,
   FolderOpen, Folder, ChevronRight, ChevronDown, LayoutGrid, Package,
   DollarSign, Monitor, Scale, Briefcase, Megaphone, ShieldCheck, PlusCircle,
-  ClipboardList, Layers,
+  ClipboardList, Layers, Sun, Moon,
 } from 'lucide-react';
 import { RefreshConfig, SidebarCategory } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,7 +45,7 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
   const location = useLocation();
   const navigate = useNavigate();
   const { orgRole, organization, hasPermission } = useAuth();
-  const { activeSidebarCategory, setActiveSidebarCategory, activeWorkflowId, setActiveWorkflowId } = useApp();
+  const { activeSidebarCategory, setActiveSidebarCategory, activeWorkflowId, setActiveWorkflowId, themeMode, toggleTheme } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -346,6 +346,13 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
                 <PlusCircle className="w-4 h-4" />
                 New Request
               </Link>
+              <button
+                onClick={toggleTheme}
+                title={themeMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-navy-light/30 hover:bg-navy-light/50 text-gray-400 hover:text-gold transition-all"
+              >
+                {themeMode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
               <button
                 onClick={handleRefresh}
                 title="Refresh data"

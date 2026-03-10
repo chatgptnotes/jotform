@@ -150,7 +150,9 @@ const AppContext = createContext<AppContextType | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>('en');
   const [viewRole, setViewRole] = useState<ViewRole>('manager');
-  const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    try { return (localStorage.getItem('themeMode') as ThemeMode) || 'dark'; } catch { return 'dark'; }
+  });
   const [watchlist, setWatchlist] = useState<WatchedItem[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [delegations, setDelegations] = useState<Delegation[]>([]);
@@ -175,7 +177,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('light-mode', themeMode === 'light');
   }, [themeMode]);
 
-  const toggleTheme = useCallback(() => setThemeMode(p => p === 'dark' ? 'light' : 'dark'), []);
+  const toggleTheme = useCallback(() => setThemeMode(p => {
+    const next = p === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('themeMode', next); } catch {}
+    return next;
+  }), []);
 
   const toggleWatch = useCallback((id: string) => {
     setWatchlist(prev => {

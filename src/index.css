@@ -2,23 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme CSS variables ── */
+:root {
+  --navy:       #1B2A4A;
+  --navy-light: #243656;
+  --navy-dark:  #0C1226;
+}
+
+.light-mode {
+  --navy:       #E8EFF8;
+  --navy-light: #D0DCF0;
+  --navy-dark:  #F4F7FC;
+}
+
 @layer base {
   body {
     @apply bg-navy-dark text-white font-sans antialiased;
   }
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+
+  /* Light mode: body */
+  .light-mode body {
+    @apply text-navy-800;
+    background-color: #F1F5F9;
   }
-  ::-webkit-scrollbar-track {
-    @apply bg-navy-dark;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-navy-light rounded-full;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-navy-200;
-  }
+
+  /* Light mode: invert white/light text */
+  .light-mode .text-white   { color: #1B2A4A !important; }
+  .light-mode .text-gray-300 { color: #475569 !important; }
+  .light-mode .text-gray-400 { color: #64748B !important; }
+  .light-mode .text-gray-500 { color: #94A3B8 !important; }
+  .light-mode .text-gray-600 { color: #94A3B8 !important; }
+
+  /* Light mode: borders */
+  .light-mode .border-navy-light\/10 { border-color: rgba(203,213,225,0.4) !important; }
+  .light-mode .border-navy-light\/20 { border-color: rgba(203,213,225,0.6) !important; }
+  .light-mode .border-navy-light\/30 { border-color: rgba(203,213,225,0.8) !important; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { @apply bg-navy-dark; }
+  ::-webkit-scrollbar-thumb { @apply bg-navy-light rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-navy-200; }
+
+  .light-mode ::-webkit-scrollbar-track { background-color: #E2E8F0; }
+  .light-mode ::-webkit-scrollbar-thumb { background-color: #94A3B8; }
 }
 
 @layer components {
@@ -48,5 +75,50 @@
   }
   .btn-outline {
     @apply px-4 py-2 rounded-xl font-semibold border border-navy-light/50 text-gray-300 hover:border-gold/50 hover:text-gold transition-all;
+  }
+
+  /* Light mode: glass-card becomes a white card */
+  .light-mode .glass-card {
+    background-color: rgba(255,255,255,0.92) !important;
+    border-color: rgba(203,213,225,0.7) !important;
+    box-shadow: 0 4px 24px rgba(30,58,100,0.08) !important;
+  }
+
+  /* Light mode: btn-outline text fix */
+  .light-mode .btn-outline {
+    @apply text-navy-700 border-slate-300 hover:border-gold/60 hover:text-gold;
+  }
+
+  /* Light mode: header */
+  .light-mode header.sticky {
+    background-color: rgba(248,250,252,0.92) !important;
+    border-color: rgba(203,213,225,0.5) !important;
+  }
+
+  /* Light mode: sidebar */
+  .light-mode aside {
+    background-color: #EEF2F9 !important;
+    border-color: rgba(203,213,225,0.6) !important;
+  }
+
+  /* Light mode: sidebar hover states */
+  .light-mode .hover\:bg-navy-light\/30:hover {
+    background-color: rgba(203,213,225,0.4) !important;
+  }
+  .light-mode .hover\:bg-navy-light\/20:hover {
+    background-color: rgba(203,213,225,0.3) !important;
+  }
+  .light-mode .hover\:text-white:hover {
+    color: #1B2A4A !important;
+  }
+
+  /* Light mode: select / input backgrounds */
+  .light-mode select,
+  .light-mode input[type="text"],
+  .light-mode input[type="search"],
+  .light-mode textarea {
+    background-color: #F8FAFC !important;
+    border-color: #CBD5E1 !important;
+    color: #1B2A4A !important;
   }
 }
