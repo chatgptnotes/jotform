@@ -60,7 +60,9 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function LevelBadge({ level }: { level: number }) {
+function LevelBadge({ level }: { level: number | 'completed' | 'rejected' }) {
+  if (level === 'completed') return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">Completed</span>;
+  if (level === 'rejected') return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-400">Rejected</span>;
   const colors: Record<number, string> = {
     1: 'bg-blue-500/20 text-blue-400',
     2: 'bg-amber-500/20 text-amber-400',
@@ -131,23 +133,20 @@ export default function DirectorDashboard({ data }: Props) {
     }
   };
 
-  // Filter to only submissions pending the director's approval
+  // Show all submissions — pending, completed, and rejected
   const directorSubmissions = useMemo(() => {
     let subs = data.allSubmissions.filter(s => {
       if (dismissedIds.has(s.id)) return false;
-      if (typeof s.currentApprovalLevel !== 'number') return false;
-
-      // Check if submission is at the director's approval level
       // Admin sees everything
       if (currentUser.isAdmin) return true;
-
+      // Completed / rejected submissions are visible to everyone
+      if (typeof s.currentApprovalLevel !== 'number') return true;
+      // Pending submissions: show if at user's approval level
       const atDirectorLevel = currentUser.approvalLevels.includes(s.currentApprovalLevel as number);
-
       const pendingEntry = s.approvalHistory.find(a => a.status === 'pending');
       const nameMatch = pendingEntry && currentUser.nameMatches.length > 0
         ? currentUser.nameMatches.some(m => pendingEntry.approverName.toLowerCase().includes(m))
         : false;
-
       return atDirectorLevel || nameMatch;
     });
 
@@ -188,10 +187,12 @@ export default function DirectorDashboard({ data }: Props) {
   }, [data.allSubmissions, activeSidebarCategory, activeWorkflowId, search, sortKey, sortDir, dismissedIds, currentUser]);
 
   // Stats
-  const pendingCount = directorSubmissions.length;
-  const criticalCount = directorSubmissions.filter(s => s.daysAtCurrentLevel > 7).length;
+  const pendingCount = directorSubmissions.filter(s => typeof s.currentApprovalLevel === 'number').length;
+  const completedCount = directorSubmissions.filter(s => s.currentApprovalLevel === 'completed').length;
+  const rejectedCount = directorSubmissions.filter(s => s.currentApprovalLevel === 'rejected').length;
+  const criticalCount = directorSubmissions.filter(s => s.daysAtCurrentLevel > 7 && typeof s.currentApprovalLevel === 'number').length;
   const avgWait = pendingCount > 0
-    ? Math.round(directorSubmissions.reduce((sum, s) => sum + s.daysAtCurrentLevel, 0) / pendingCount)
+    ? Math.round(directorSubmissions.filter(s => typeof s.currentApprovalLevel === 'number').reduce((sum, s) => sum + s.daysAtCurrentLevel, 0) / pendingCount)
     : 0;
   const approvedToday = approvedIds.size;
 
@@ -301,8 +302,8 @@ export default function DirectorDashboard({ data }: Props) {
             </h2>
             <p className="text-sm text-gray-400 mt-1">
               {directorSubmissions.length > 0
-                ? `Showing ${directorSubmissions.length} form${directorSubmissions.length !== 1 ? 's' : ''} pending your approval`
-                : 'No forms pending your approval — all caught up!'}
+                ? `${directorSubmissions.length} submission${directorSubmissions.length !== 1 ? 's' : ''} — ${pendingCount} pending, ${completedCount} completed, ${rejectedCount} rejected`
+                : 'No submissions found'}
             </p>
             {activeWorkflowId && (
               <p className="text-xs text-gold/70 mt-0.5 flex items-center gap-1">
@@ -323,10 +324,10 @@ export default function DirectorDashboard({ data }: Props) {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Pending Approvals', value: pendingCount, icon: FileText, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-          { label: 'Approved Today', value: approvedToday, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-          { label: 'Avg Wait (days)', value: avgWait, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-          { label: 'Critical (>7d)', value: criticalCount, icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/10' },
+          { label: 'Pending Approval', value: pendingCount, icon: FileText, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+          { label: 'Completed', value: completedCount + approvedToday, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+          { label: 'Rejected', value: rejectedCount, icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10' },
+          { label: 'Critical (>7d)', value: criticalCount, icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-500/10' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -394,8 +395,8 @@ export default function DirectorDashboard({ data }: Props) {
                     <td colSpan={8} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Shield className="w-10 h-10 text-emerald-400/50" />
-                        <p className="text-gray-400">No pending approvals</p>
-                        <p className="text-xs text-gray-600">All caught up!</p>
+                        <p className="text-gray-400">No submissions found</p>
+                        <p className="text-xs text-gray-600">Try clearing your search or filters</p>
                       </div>
                     </td>
                   </tr>
@@ -443,7 +444,7 @@ export default function DirectorDashboard({ data }: Props) {
                       <p className="text-xs text-gray-500">{sub.submittedBy.department}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <LevelBadge level={sub.currentApprovalLevel as number} />
+                      <LevelBadge level={sub.currentApprovalLevel} />
                     </td>
                     <td className="px-4 py-3">
                       <PendingWithCell submission={sub} />
@@ -456,7 +457,27 @@ export default function DirectorDashboard({ data }: Props) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
-                        {sub.actionType === 'task' ? (
+                        {sub.currentApprovalLevel === 'completed' ? (
+                          /* ── COMPLETED ── */
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-medium flex items-center gap-1 border border-emerald-500/20">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Approved & Completed
+                            </span>
+                            <a href={`https://eforms.mediaoffice.ae/inbox/${sub.formId}/${sub.id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-gold flex items-center gap-1 transition-colors">
+                              <ExternalLink className="w-3 h-3" /> View in JotForm
+                            </a>
+                          </div>
+                        ) : sub.currentApprovalLevel === 'rejected' ? (
+                          /* ── REJECTED ── */
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-medium flex items-center gap-1 border border-red-500/20">
+                              <XCircle className="w-3.5 h-3.5" /> Rejected
+                            </span>
+                            <a href={`https://eforms.mediaoffice.ae/inbox/${sub.formId}/${sub.id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:text-gold flex items-center gap-1 transition-colors">
+                              <ExternalLink className="w-3 h-3" /> View in JotForm
+                            </a>
+                          </div>
+                        ) : sub.actionType === 'task' ? (
                           /* ── TASK step: only show View Task button ── */
                           <button
                             onClick={() => openTaskUrl(sub)}
