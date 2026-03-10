@@ -75,7 +75,7 @@ function LevelBadge({ level }: { level: number }) {
 }
 
 export default function DirectorDashboard({ data }: Props) {
-  const { activeSidebarCategory, addAuditEntry } = useApp();
+  const { activeSidebarCategory, addAuditEntry, activeWorkflowId } = useApp();
   const { user } = useAuth();
   const currentUser = getUserConfig(user?.email);
   const [search, setSearch] = useState('');
@@ -151,7 +151,12 @@ export default function DirectorDashboard({ data }: Props) {
       return atDirectorLevel || nameMatch;
     });
 
-    // Apply sidebar category filter
+    // Apply workflow (form) filter from sidebar
+    if (activeWorkflowId) {
+      subs = subs.filter(s => s.formId === activeWorkflowId);
+    }
+
+    // Apply department category filter
     if (activeSidebarCategory?.filter?.departments?.length) {
       subs = subs.filter(s => activeSidebarCategory.filter!.departments!.includes(s.submittedBy.department));
     }
@@ -180,7 +185,7 @@ export default function DirectorDashboard({ data }: Props) {
     });
 
     return subs;
-  }, [data.allSubmissions, activeSidebarCategory, search, sortKey, sortDir, dismissedIds, currentUser]);
+  }, [data.allSubmissions, activeSidebarCategory, activeWorkflowId, search, sortKey, sortDir, dismissedIds, currentUser]);
 
   // Stats
   const pendingCount = directorSubmissions.length;
@@ -250,6 +255,37 @@ export default function DirectorDashboard({ data }: Props) {
       : <ArrowUpDown className="w-3.5 h-3.5 opacity-30" />
   );
 
+  // Skeleton: only shown on very first load when Supabase cache is also empty
+  if (data.loading && data.allSubmissions.length === 0) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="glass-card p-5 border border-gold/20">
+          <div className="h-7 bg-navy-light/30 rounded w-64 mb-2" />
+          <div className="h-4 bg-navy-light/20 rounded w-48" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="glass-card p-4">
+              <div className="h-8 bg-navy-light/30 rounded w-12 mb-1" />
+              <div className="h-3 bg-navy-light/20 rounded w-24" />
+            </div>
+          ))}
+        </div>
+        <div className="glass-card overflow-hidden">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="border-b border-navy-light/10 px-4 py-4 flex items-center gap-4">
+              <div className="h-4 bg-navy-light/30 rounded w-14" />
+              <div className="h-4 bg-navy-light/20 rounded w-52" />
+              <div className="h-4 bg-navy-light/20 rounded w-32 ml-4" />
+              <div className="h-4 bg-navy-light/20 rounded w-10 ml-auto" />
+              <div className="h-6 bg-navy-light/30 rounded w-24" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
@@ -268,7 +304,13 @@ export default function DirectorDashboard({ data }: Props) {
                 ? `Showing ${directorSubmissions.length} form${directorSubmissions.length !== 1 ? 's' : ''} pending your approval`
                 : 'No forms pending your approval — all caught up!'}
             </p>
-            {activeSidebarCategory?.label && activeSidebarCategory.id !== 'all' && (
+            {activeWorkflowId && (
+              <p className="text-xs text-gold/70 mt-0.5 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-gold/70 inline-block" />
+                Workflow: {data.allSubmissions.find(s => s.formId === activeWorkflowId)?.formTitle ?? activeWorkflowId}
+              </p>
+            )}
+            {!activeWorkflowId && activeSidebarCategory?.label && activeSidebarCategory.id !== 'all' && (
               <p className="text-xs text-gray-500 mt-0.5">Filter: {activeSidebarCategory.label}</p>
             )}
           </div>

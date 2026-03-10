@@ -6,6 +6,7 @@ import {
   Users, FileText, CreditCard, HelpCircle, Building2, BarChart3, Kanban,
   FolderOpen, Folder, ChevronRight, ChevronDown, LayoutGrid, Package,
   DollarSign, Monitor, Scale, Briefcase, Megaphone, ShieldCheck, PlusCircle,
+  ClipboardList, Layers,
 } from 'lucide-react';
 import { RefreshConfig, SidebarCategory } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,11 +34,18 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   marketing: Megaphone,
 };
 
+// The 3 tracked JotForm workflows shown in the sidebar
+const WORKFLOWS = [
+  { id: '260562405560351', label: 'Purchase Order Approval', icon: Package },
+  { id: '260562114142344', label: 'Content Publishing Approval', icon: FileText },
+  { id: '260673958643066', label: 'Task Workflow (Test)', icon: ClipboardList },
+];
+
 export default function Layout({ children, refreshConfig, setRefreshConfig, onRefresh }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
   const { orgRole, organization, hasPermission } = useAuth();
-  const { activeSidebarCategory, setActiveSidebarCategory } = useApp();
+  const { activeSidebarCategory, setActiveSidebarCategory, activeWorkflowId, setActiveWorkflowId } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -202,10 +210,58 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
               })}
             </div>
 
+            {/* Section 2: Workflows */}
+            <div className="mx-4 border-t border-navy-light/15 my-2" />
+            <div className="px-4 pb-2">
+              <p className="text-[10px] uppercase tracking-widest text-gray-600 font-medium mb-2 px-2">Workflows</p>
+
+              {/* All Workflows */}
+              <button
+                onClick={() => {
+                  setActiveWorkflowId(null);
+                  setActiveSidebarCategory(null);
+                  navigate('/app/director');
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl mb-0.5 transition-all duration-200 ${
+                  !activeWorkflowId && location.pathname === '/app/director'
+                    ? 'bg-gold/10 text-gold border border-gold/20'
+                    : 'text-gray-400 hover:text-white hover:bg-navy-light/30'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                <span className="text-sm font-medium flex-1 text-left">All Workflows</span>
+              </button>
+
+              {WORKFLOWS.map(wf => {
+                const Icon = wf.icon;
+                const isActive = activeWorkflowId === wf.id;
+                return (
+                  <button
+                    key={wf.id}
+                    onClick={() => {
+                      setActiveWorkflowId(isActive ? null : wf.id);
+                      setActiveSidebarCategory(null);
+                      navigate('/app/director');
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl mb-0.5 transition-all duration-200 ${
+                      isActive
+                        ? 'bg-gold/10 text-gold border border-gold/20'
+                        : 'text-gray-400 hover:text-white hover:bg-navy-light/30'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="text-sm font-medium flex-1 text-left leading-tight">{wf.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Separator */}
             <div className="mx-4 border-t border-navy-light/15 my-2" />
 
-            {/* Section 2: Tools */}
+            {/* Section 3: Tools */}
             <div className="px-4 pt-1 pb-4 space-y-0.5">
               <p className="text-[10px] uppercase tracking-widest text-gray-600 font-medium mb-2 px-2">Tools</p>
               {TOOL_NAV.map(item => {

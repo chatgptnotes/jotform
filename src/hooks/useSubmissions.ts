@@ -371,11 +371,30 @@ export function useSubmissions() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    // ── Phase 1: show Supabase cache instantly ──────────────────────────────
+    // Supabase responds in ~100 ms, so the dashboard appears immediately
+    // instead of waiting 3-5 s for the JotForm API.
+    let hasCachedData = false;
     try {
-      // Step 1: trigger server-side sync (JotForm → Supabase) — best-effort, non-blocking
+      const { data: sbRows } = await supabase
+        .from('jf_submissions')
+        .select('*')
+        .order('submission_date', { ascending: false });
+      if (sbRows && sbRows.length > 0) {
+        setAllSubmissions(sbRows.map(r => mapSupabaseRow(r as Record<string, unknown>)));
+        setLoading(false); // dashboard visible immediately
+        hasCachedData = true;
+      }
+    } catch {
+      // Supabase unavailable — will stay in loading until JotForm responds
+    }
+
+    // ── Phase 2: fetch fresh data from JotForm, update silently ────────────
+    // No loading flash — if Phase 1 already showed data, this just swaps it.
+    try {
       fetch('/api/sync').catch(err => console.warn('[JotFlow] Sync failed:', err));
 
-      // Step 2: fetch all tracked forms directly from JotForm (always fresh)
       const [poRes, cpRes, ttRes] = await Promise.all([
         fetch(`/api/jotform?path=form/${FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
         fetch(`/api/jotform?path=form/${CONTENT_FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
@@ -383,7 +402,6 @@ export function useSubmissions() {
       ]);
 
       const apiError = !poRes.ok && !cpRes.ok && !ttRes.ok;
-
       const poData = poRes.ok ? await poRes.json() : null;
       const cpData = cpRes.ok ? await cpRes.json() : null;
       const ttData = ttRes.ok ? await ttRes.json() : null;
@@ -391,17 +409,14 @@ export function useSubmissions() {
       const poRows: Record<string, unknown>[] = poData?.content || [];
       const cpRows: Record<string, unknown>[] = cpData?.content || [];
       const ttRows: Record<string, unknown>[] = ttData?.content || [];
-
       const hasApiData = poRows.length > 0 || cpRows.length > 0 || ttRows.length > 0;
 
       if (hasApiData) {
-        // Fetch workflow step configs for all forms (cached after first load)
         const [poSteps, cpSteps, ttSteps] = await Promise.all([
           fetchWorkflowSteps(FORM_ID),
           fetchWorkflowSteps(CONTENT_FORM_ID),
           fetchWorkflowSteps(TASK_TEST_FORM_ID),
         ]);
-
         const mapped = [
           ...poRows.map(r => mapJotFormSubmission(r, poSteps)),
           ...cpRows.map(r => mapContentPublishingSubmission(r, cpSteps)),
@@ -409,28 +424,14 @@ export function useSubmissions() {
         ];
         setAllSubmissions(mapped);
         setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
-        setLoading(false);
-        return;
-      }
-
-      // Fallback: read from Supabase (triggered by API error or genuinely empty)
-      if (apiError) {
-        console.warn('[JotFlow] JotForm API unavailable — loading from Supabase cache (data may be stale)');
+      } else if (apiError && !hasCachedData) {
         setError('Live data unavailable — showing cached data');
       }
-      const { data: sbRows, error: sbError } = await supabase
-        .from('jf_submissions')
-        .select('*')
-        .eq('form_id', FORM_ID)
-        .order('submission_date', { ascending: false });
-
-      if (sbError) throw new Error(sbError.message);
-      const mapped = (sbRows || []).map(r => mapSupabaseRow(r as Record<string, unknown>));
-      setAllSubmissions(mapped);
-      setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-      setAllSubmissions([]);
+      if (!hasCachedData) {
+        setError(err instanceof Error ? err.message : String(err));
+        setAllSubmissions([]);
+      }
     } finally {
       setLoading(false);
     }

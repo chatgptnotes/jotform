@@ -80,6 +80,8 @@ interface AppContextType {
   t: (key: string) => string;
   activeSidebarCategory: SidebarCategory | null;
   setActiveSidebarCategory: (cat: SidebarCategory | null) => void;
+  activeWorkflowId: string | null;
+  setActiveWorkflowId: (id: string | null) => void;
   autoApproveRules: AutoApproveRule[];
   setAutoApproveRules: (rules: AutoApproveRule[]) => void;
 }
@@ -161,6 +163,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [selectedSubmissions, setSelectedSubmissions] = useState<Set<string>>(new Set());
   const [activeSidebarCategory, setActiveSidebarCategory] = useState<SidebarCategory | null>(null);
+  const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null);
   const [autoApproveRules, setAutoApproveRules] = useState<AutoApproveRule[]>(DEFAULT_AUTO_APPROVE_RULES);
 
   useEffect(() => {
@@ -241,6 +244,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       selectedSubmissions, toggleSelection, selectAll, clearSelection,
       t,
       activeSidebarCategory, setActiveSidebarCategory,
+      activeWorkflowId, setActiveWorkflowId,
       autoApproveRules, setAutoApproveRules,
     }}>
       {children}
