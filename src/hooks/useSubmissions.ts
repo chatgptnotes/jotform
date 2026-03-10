@@ -586,7 +586,9 @@ export function useSubmissions() {
         s.title.toLowerCase().includes(q) ||
         s.referenceNumber.toLowerCase().includes(q) ||
         s.submittedBy.name.toLowerCase().includes(q) ||
-        s.id.toLowerCase().includes(q)
+        s.id.toLowerCase().includes(q) ||
+        s.formId.toLowerCase().includes(q) ||
+        s.formTitle.toLowerCase().includes(q)
       );
     }
     result.sort((a, b) => {
