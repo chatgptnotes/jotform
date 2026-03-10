@@ -35,7 +35,8 @@ const CP_FORM_ID = '260562114142344';
 
 type FieldMap = { statusField: string; approverField: string | null; overallStatusField: string | null };
 
-function getFieldMap(formId: string, level: number): FieldMap | null {
+function getFieldMap(submission: Submission, level: number): FieldMap | null {
+  const formId = submission.formId;
   if (formId === PO_FORM_ID) {
     const po: Record<number, { statusField: string; approverField: string }> = {
       1: { statusField: '8',  approverField: '9'  },
@@ -47,11 +48,14 @@ function getFieldMap(formId: string, level: number): FieldMap | null {
     return m ? { ...m, overallStatusField: '20' } : null;
   }
   if (formId === CP_FORM_ID && level === 1) {
-    // Content Publishing: single field (id 10) stores approval status.
-    // No separate approver field — don't overwrite other fields.
     return { statusField: '10', approverField: null, overallStatusField: null };
   }
-  return null; // unsupported form — caller shows an error
+  // Dynamic form: use levelFieldMap populated by the generic mapper
+  if (submission.levelFieldMap) {
+    const lf = submission.levelFieldMap.find(m => m.level === level);
+    if (lf) return { statusField: lf.statusFieldId, approverField: lf.approverFieldId, overallStatusField: lf.overallStatusFieldId };
+  }
+  return null; // no field map available
 }
 
 // Director-level approvals require signature
@@ -88,7 +92,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     setPushResult(null);
 
     const lvl = submission.currentApprovalLevel;
-    const fields = getFieldMap(submission.formId, lvl);
+    const fields = getFieldMap(submission, lvl);
     if (!fields) {
       setPushResult({ success: false, message: `Direct approval is not supported for this form (${submission.formId}). Please action it in JotForm directly.` });
       setApproving(false);

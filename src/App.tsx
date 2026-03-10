@@ -27,7 +27,7 @@ function ProtectedApp() {
   const data = useSubmissions();
 
   return (
-    <Layout refreshConfig={data.refreshConfig} setRefreshConfig={data.setRefreshConfig} onRefresh={data.refresh}>
+    <Layout refreshConfig={data.refreshConfig} setRefreshConfig={data.setRefreshConfig} onRefresh={data.refresh} activeForms={data.activeForms}>
       <Routes>
         <Route path="/" element={<DirectorDashboard data={data} />} />
         <Route path="/tracker" element={<WorkflowTracker data={data} />} />

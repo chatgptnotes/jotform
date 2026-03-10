@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Submission, ApprovalEntry, ApprovalLevel, FilterConfig, SortConfig, PaginationConfig, RefreshConfig, WorkflowActionType } from '../types';
 import { getDashboardStats, getApprovalLevelStats, getDepartmentStats, getTrendData, getBottleneckData, getHeatmapData } from '../services/mockData';
 import { supabase } from '../lib/supabase';
+import { fetchUserForms, fetchFormQuestions, detectFields, JFFormMeta, DetectedFields } from '../services/formDiscovery';
 
 // ─── Workflow step type cache (per formId) ────────────────────────────────────
 interface WorkflowStep { level: number; type: WorkflowActionType; }
@@ -287,6 +288,113 @@ function mapTaskTestSubmission(raw: Record<string, unknown>, workflowSteps: Work
   };
 }
 
+// ─── Map any JotForm submission using heuristically-detected fields ───────────
+function mapGenericSubmission(
+  raw: Record<string, unknown>,
+  formId: string,
+  formTitle: string,
+  fields: DetectedFields,
+  workflowSteps: WorkflowStep[] = []
+): Submission {
+  const answers = (raw.answers as Record<string, { answer: unknown; text?: string }>) || {};
+  const get = (id: string | null) => id ? extractText(answers[id]?.answer) : '';
+
+  const requesterName = get(fields.nameFieldId);
+  const email = get(fields.emailFieldId);
+  const department = get(fields.deptFieldId) || 'General';
+  const description = get(fields.descFieldId) || formTitle;
+  const amount = get(fields.amountFieldId);
+  const priorityRaw = (get(fields.priorityFieldId) || 'medium').toLowerCase();
+  const priority = (['urgent', 'high', 'medium', 'low'].find(p => priorityRaw.includes(p)) || 'medium') as 'low' | 'medium' | 'high' | 'urgent';
+
+  const history: ApprovalEntry[] = [];
+  let currentLevel: ApprovalLevel | 'completed' | 'rejected' = 1 as ApprovalLevel;
+
+  if (fields.levelFields.length > 0) {
+    for (const lf of fields.levelFields) {
+      const statusVal = get(lf.statusFieldId).toLowerCase();
+      const approverName = get(lf.approverFieldId) || `Level ${lf.level} Approver`;
+      const date = get(lf.dateFieldId) || undefined;
+      if (statusVal === 'approved') {
+        history.push({ level: lf.level as ApprovalLevel, approverName, status: 'approved', date });
+        const isLast = lf.level === fields.levelFields[fields.levelFields.length - 1].level;
+        currentLevel = isLast ? 'completed' : (lf.level + 1) as ApprovalLevel;
+      } else if (statusVal === 'rejected' || statusVal === 'denied') {
+        history.push({ level: lf.level as ApprovalLevel, approverName, status: 'rejected', date });
+        currentLevel = 'rejected';
+        break;
+      } else {
+        history.push({ level: lf.level as ApprovalLevel, approverName, status: 'pending' });
+        currentLevel = lf.level as ApprovalLevel;
+        break;
+      }
+    }
+  } else {
+    // Single-level: read overall status field
+    const overall = get(fields.overallStatusFieldId).toLowerCase();
+    if (overall.includes('approved') || overall.includes('complet')) currentLevel = 'completed';
+    else if (overall.includes('reject') || overall.includes('denied')) currentLevel = 'rejected';
+    else currentLevel = 1 as ApprovalLevel;
+
+    const histStatus = typeof currentLevel === 'number' ? 'pending' : currentLevel === 'completed' ? 'approved' : 'rejected';
+    history.push({ level: 1 as ApprovalLevel, approverName: 'Approver', status: histStatus });
+  }
+
+  // Overall status field can override level computation
+  const overallFinal = get(fields.overallStatusFieldId).toLowerCase();
+  if (overallFinal.includes('complet')) currentLevel = 'completed';
+  else if (overallFinal.includes('reject')) currentLevel = 'rejected';
+
+  const createdAt = (raw.created_at as string) || '';
+  const parseUTC = (s: string) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
+  const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
+  const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  const lastApproval = [...history].reverse().find(h => h.status === 'approved' && h.date);
+  const levelStartDate = lastApproval?.date ? parseUTC(lastApproval.date) : submissionDate;
+  const daysAtCurrentLevel = typeof currentLevel === 'number'
+    ? Math.floor((Date.now() - levelStartDate.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  const id = String(raw.id);
+  const editLink = String(raw.edit_link || '');
+  const actionType = getActionType(workflowSteps, currentLevel);
+  const inboxUrl = `https://eforms.mediaoffice.ae/inbox/${formId}/${id}`;
+  const prefix = formTitle.split(/\s+/).filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 3) || 'WF';
+
+  return {
+    id,
+    formId,
+    formTitle,
+    referenceNumber: `${prefix}-${id.slice(-6)}`,
+    title: description,
+    description: `${description}${amount ? ' — AED ' + amount : ''}`,
+    editLink: editLink || undefined,
+    actionType,
+    taskUrl: inboxUrl,
+    formUrl: inboxUrl,
+    submittedBy: { name: requesterName || 'Unknown', department, email },
+    submissionDate: submissionDate.toISOString().slice(0, 10),
+    currentApprovalLevel: currentLevel,
+    approvalHistory: history,
+    daysAtCurrentLevel,
+    totalDaysSinceSubmission: totalDays,
+    overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    priority,
+    answers: { description, amount, department, email, requester: requesterName },
+    levelFieldMap: fields.levelFields.length > 0
+      ? fields.levelFields.map(lf => ({
+          level: lf.level,
+          statusFieldId: lf.statusFieldId,
+          approverFieldId: lf.approverFieldId,
+          overallStatusFieldId: fields.overallStatusFieldId,
+        }))
+      : fields.overallStatusFieldId
+        ? [{ level: 1, statusFieldId: fields.overallStatusFieldId, approverFieldId: null, overallStatusFieldId: fields.overallStatusFieldId }]
+        : undefined,
+  };
+}
+
 // ─── Map a Supabase row back to a Submission ──────────────────────────────────
 function mapSupabaseRow(row: Record<string, unknown>): Submission {
   const raw = (row.raw_data as Record<string, unknown>) || {};
@@ -343,6 +451,7 @@ function mapSupabaseRow(row: Record<string, unknown>): Submission {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useSubmissions() {
   const [allSubmissions, setAllSubmissions] = useState<Submission[]>([]);
+  const [activeForms, setActiveForms] = useState<JFFormMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshConfig, setRefreshConfig] = useState<RefreshConfig>({
@@ -390,41 +499,53 @@ export function useSubmissions() {
       // Supabase unavailable — will stay in loading until JotForm responds
     }
 
-    // ── Phase 2: fetch fresh data from JotForm, update silently ────────────
+    // ── Phase 2: discover all enabled forms, fetch submissions dynamically ──
     // No loading flash — if Phase 1 already showed data, this just swaps it.
     try {
       fetch('/api/sync').catch(err => console.warn('[JotFlow] Sync failed:', err));
 
-      const [poRes, cpRes, ttRes] = await Promise.all([
-        fetch(`/api/jotform?path=form/${FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
-        fetch(`/api/jotform?path=form/${CONTENT_FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
-        fetch(`/api/jotform?path=form/${TASK_TEST_FORM_ID}/submissions&limit=1000&orderby=created_at&direction=DESC`),
-      ]);
+      // Discover all enabled JotForm workflows for this account
+      const forms = await fetchUserForms();
+      if (forms.length > 0) setActiveForms(forms);
 
-      const apiError = !poRes.ok && !cpRes.ok && !ttRes.ok;
-      const poData = poRes.ok ? await poRes.json() : null;
-      const cpData = cpRes.ok ? await cpRes.json() : null;
-      const ttData = ttRes.ok ? await ttRes.json() : null;
+      // Fetch submissions + questions for all forms in parallel
+      const formResults = await Promise.all(
+        forms.map(async (form) => {
+          const [subsRes, questions] = await Promise.all([
+            fetch(`/api/jotform?path=form/${form.id}/submissions&limit=1000&orderby=created_at&direction=DESC`),
+            fetchFormQuestions(form.id),
+          ]);
+          const subsData = subsRes.ok ? await subsRes.json() : null;
+          const rows: Record<string, unknown>[] = subsData?.content || [];
+          const detectedFields = detectFields(questions);
+          const steps = await fetchWorkflowSteps(form.id);
+          return { form, rows, detectedFields, steps };
+        })
+      );
 
-      const poRows: Record<string, unknown>[] = poData?.content || [];
-      const cpRows: Record<string, unknown>[] = cpData?.content || [];
-      const ttRows: Record<string, unknown>[] = ttData?.content || [];
-      const hasApiData = poRows.length > 0 || cpRows.length > 0 || ttRows.length > 0;
+      const totalRows = formResults.reduce((sum, r) => sum + r.rows.length, 0);
 
-      if (hasApiData) {
-        const [poSteps, cpSteps, ttSteps] = await Promise.all([
-          fetchWorkflowSteps(FORM_ID),
-          fetchWorkflowSteps(CONTENT_FORM_ID),
-          fetchWorkflowSteps(TASK_TEST_FORM_ID),
-        ]);
-        const mapped = [
-          ...poRows.map(r => mapJotFormSubmission(r, poSteps)),
-          ...cpRows.map(r => mapContentPublishingSubmission(r, cpSteps)),
-          ...ttRows.map(r => mapTaskTestSubmission(r, ttSteps)),
-        ];
+      if (totalRows > 0) {
+        const mapped: Submission[] = [];
+        for (const { form, rows, detectedFields, steps } of formResults) {
+          for (const raw of rows) {
+            // Use specific mappers for known forms; generic mapper for all others
+            if (form.id === FORM_ID) {
+              mapped.push(mapJotFormSubmission(raw, steps));
+            } else if (form.id === CONTENT_FORM_ID) {
+              mapped.push(mapContentPublishingSubmission(raw, steps));
+            } else if (form.id === TASK_TEST_FORM_ID) {
+              mapped.push(mapTaskTestSubmission(raw, steps));
+            } else {
+              mapped.push(mapGenericSubmission(raw, form.id, form.title, detectedFields, steps));
+            }
+          }
+        }
         setAllSubmissions(mapped);
         setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
-      } else if (apiError && !hasCachedData) {
+      } else if (forms.length === 0 && !hasCachedData) {
+        setError('No JotForm workflows found. Please ensure your JotForm account has enabled forms.');
+      } else if (totalRows === 0 && !hasCachedData) {
         setError('Live data unavailable — showing cached data');
       }
     } catch (err: unknown) {
@@ -495,6 +616,7 @@ export function useSubmissions() {
 
   return {
     allSubmissions, filteredSubmissions, paginatedSubmissions,
+    activeForms,
     loading, error,
     stats, approvalStats, departmentStats, trendData, bottleneckData, heatmapData,
     filters, setFilters: wrappedSetFilters,

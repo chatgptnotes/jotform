@@ -31,6 +31,8 @@ export interface Submission {
   overallStatus: OverallStatus;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   answers: Record<string, string>;
+  /** Populated by the generic mapper for dynamically-discovered forms so the modal can approve/reject them */
+  levelFieldMap?: { level: number; statusFieldId: string; approverFieldId: string | null; overallStatusFieldId: string | null }[];
 }
 
 export interface ApprovalEntry {
