@@ -137,8 +137,11 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
   const id = String(raw.id);
   const editLink = String(raw.edit_link || '');
   const actionType = getActionType(workflowSteps, currentLevel);
+  // Both taskUrl and formUrl point to the main form's inbox for this submission.
+  // From the inbox, JotForm shows the appropriate native action button
+  // ("View Task" or "View This Form") depending on the current workflow step.
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${FORM_ID}/${id}`;
-  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${FORM_ID}`;
+  const formUrl = `https://eforms.mediaoffice.ae/inbox/${FORM_ID}/${id}`;
 
   return {
     id,
@@ -197,7 +200,7 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
   const editLink = String(raw.edit_link || '');
   const actionType = getActionType(workflowSteps, currentLevel);
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
-  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${CONTENT_FORM_ID}`;
+  const formUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
 
   return {
     id,
@@ -252,7 +255,7 @@ function mapTaskTestSubmission(raw: Record<string, unknown>, workflowSteps: Work
   const editLink = String(raw.edit_link || '');
   const actionType = getActionType(workflowSteps, currentLevel);
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${TASK_TEST_FORM_ID}/${id}`;
-  const formUrl = editLink ? `https://eforms.mediaoffice.ae/edit/${editLink}` : `https://eforms.mediaoffice.ae/${TASK_TEST_FORM_ID}`;
+  const formUrl = `https://eforms.mediaoffice.ae/inbox/${TASK_TEST_FORM_ID}/${id}`;
 
   return {
     id,
@@ -313,7 +316,7 @@ function mapSupabaseRow(row: Record<string, unknown>): Submission {
     description: String(row.title || 'Purchase Order'),
     actionType: 'approval' as WorkflowActionType,
     taskUrl: `https://eforms.mediaoffice.ae/inbox/${sbFormId}/${sbId}`,
-    formUrl: `https://eforms.mediaoffice.ae/${sbFormId}`,
+    formUrl: `https://eforms.mediaoffice.ae/inbox/${sbFormId}/${sbId}`,
     submittedBy: {
       name: String(row.submitted_by || 'Unknown'),
       department: String(row.department || 'General'),

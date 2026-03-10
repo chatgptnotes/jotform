@@ -43,7 +43,6 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [uploadingSignature, setUploadingSignature] = useState(false);
-  const [formUrlLoading, setFormUrlLoading] = useState(false);
   // AbortController ref — cancelled when modal closes or submission changes
   const abortRef = useRef<AbortController | null>(null);
   const [pushResult, setPushResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -169,18 +168,12 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     window.open(submission.taskUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const openFormUrl = async () => {
+  const openFormUrl = () => {
     if (!submission) return;
-    setFormUrlLoading(true);
-    try {
-      const res = await fetch(`/api/form-url?formId=${submission.formId}&submissionId=${submission.id}`);
-      const data = await res.json();
-      window.open(data.formUrl || submission.formUrl || submission.editLink, '_blank', 'noopener,noreferrer');
-    } catch {
-      window.open(submission.formUrl || submission.editLink, '_blank', 'noopener,noreferrer');
-    } finally {
-      setFormUrlLoading(false);
-    }
+    // Link to main form's inbox for this submission — the native JotForm
+    // "View This Form" button on that page leads to the actual form-fill URL.
+    // (JotForm does not expose the internal form-fill URL per-submission via API.)
+    window.open(submission.formUrl, '_blank', 'noopener,noreferrer');
   };
 
   // Reset form when submission changes; cancel any in-flight upload
@@ -328,12 +321,11 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     </p>
                     <button
                       onClick={openFormUrl}
-                      disabled={formUrlLoading}
-                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 disabled:opacity-50 text-blue-400 rounded-xl font-semibold text-sm border border-blue-500/20 transition-all"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-xl font-semibold text-sm border border-blue-500/20 transition-all"
                     >
-                      {formUrlLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileEdit className="w-4 h-4" />}
-                      {formUrlLoading ? 'Resolving form link...' : 'View Form in JotForm'}
-                      {!formUrlLoading && <ExternalLink className="w-3.5 h-3.5 opacity-60" />}
+                      <FileEdit className="w-4 h-4" />
+                      View Form in JotForm
+                      <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                     </button>
                   </div>
                 )}
