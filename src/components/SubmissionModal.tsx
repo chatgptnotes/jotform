@@ -43,7 +43,6 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [uploadingSignature, setUploadingSignature] = useState(false);
-  const [taskUrlLoading, setTaskUrlLoading] = useState(false);
   const [formUrlLoading, setFormUrlLoading] = useState(false);
   // AbortController ref — cancelled when modal closes or submission changes
   const abortRef = useRef<AbortController | null>(null);
@@ -162,18 +161,12 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     }
   };
 
-  const openTaskUrl = async () => {
+  const openTaskUrl = () => {
     if (!submission) return;
-    setTaskUrlLoading(true);
-    try {
-      const res = await fetch(`/api/task-url?formId=${submission.formId}&submissionId=${submission.id}`);
-      const data = await res.json();
-      window.open(data.taskUrl || submission.taskUrl, '_blank', 'noopener,noreferrer');
-    } catch {
-      window.open(submission.taskUrl, '_blank', 'noopener,noreferrer');
-    } finally {
-      setTaskUrlLoading(false);
-    }
+    // Link to main form's inbox for this submission — the native JotForm
+    // "View Task" button on that page leads to the actual task completion URL.
+    // (JotForm does not expose the approval-form task URL via API.)
+    window.open(submission.taskUrl, '_blank', 'noopener,noreferrer');
   };
 
   const openFormUrl = async () => {
@@ -318,12 +311,11 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     </p>
                     <button
                       onClick={openTaskUrl}
-                      disabled={taskUrlLoading}
-                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gold/20 hover:bg-gold/30 disabled:opacity-50 text-gold rounded-xl font-semibold text-sm border border-gold/20 transition-all"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gold/20 hover:bg-gold/30 text-gold rounded-xl font-semibold text-sm border border-gold/20 transition-all"
                     >
-                      {taskUrlLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
-                      {taskUrlLoading ? 'Resolving task link...' : 'View Task in JotForm'}
-                      {!taskUrlLoading && <ExternalLink className="w-3.5 h-3.5 opacity-60" />}
+                      <ClipboardList className="w-4 h-4" />
+                      View Task in JotForm
+                      <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                     </button>
                   </div>
                 )}
