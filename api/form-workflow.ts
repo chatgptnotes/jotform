@@ -37,6 +37,11 @@ const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
     1: 'approval',  // Step 1: Approval
     2: 'task',      // Step 2: Task → View Task button (links to internal task form)
   },
+  // Media Event Planning Request — approval then form submission
+  '260561852126354': {
+    1: 'approval',  // Step 1: Approval
+    2: 'form',      // Step 2: IT Support form submission
+  },
 };
 
 /**
