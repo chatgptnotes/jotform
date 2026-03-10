@@ -81,7 +81,7 @@ export default function DirectorDashboard({ data }: Props) {
   const { user } = useAuth();
   const currentUser = getUserConfig(user?.email);
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState<'daysAtCurrentLevel' | 'submissionDate' | 'currentApprovalLevel'>('daysAtCurrentLevel');
+  const [sortKey, setSortKey] = useState<'daysAtCurrentLevel' | 'submissionDate' | 'currentApprovalLevel'>('submissionDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [commentingId, setCommentingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
