@@ -176,6 +176,7 @@ export function generateMockSubmissions(count: number = 500): Submission[] {
       daysAtCurrentLevel: daysAtCurrent,
       totalDaysSinceSubmission: totalDays,
       overallStatus: getOverallStatus(daysAtCurrent),
+      jotformStatus: currentLevel === 'completed' ? 'Completed' : currentLevel === 'rejected' ? 'Rejected' : 'Pending',
       priority: daysAtCurrent > 30 ? 'urgent' : daysAtCurrent > 14 ? 'high' : daysAtCurrent > 7 ? 'medium' : 'low',
       actionType: 'approval',
       answers: {},
