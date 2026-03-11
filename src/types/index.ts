@@ -29,6 +29,8 @@ export interface Submission {
   daysAtCurrentLevel: number;
   totalDaysSinceSubmission: number;
   overallStatus: OverallStatus;
+  /** Raw status value pulled directly from JotForm (e.g. 'Approved', 'Rejected', 'In Progress', 'Completed', 'Pending') */
+  jotformStatus: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   answers: Record<string, string>;
   /** Populated by the generic mapper for dynamically-discovered forms so the modal can approve/reject them */

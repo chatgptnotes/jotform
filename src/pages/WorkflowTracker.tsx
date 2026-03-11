@@ -21,9 +21,11 @@ const LEVELS = [
 ];
 const STATUSES = [
   { value: '', label: 'All Statuses' },
-  { value: 'on-track', label: 'On Track' },
-  { value: 'delayed', label: 'Delayed' },
-  { value: 'critical', label: 'Critical' },
+  { value: 'Pending', label: 'Pending' },
+  { value: 'In Progress', label: 'In Progress' },
+  { value: 'Approved', label: 'Approved' },
+  { value: 'Completed', label: 'Completed' },
+  { value: 'Rejected', label: 'Rejected' },
 ];
 
 const levelColors: Record<string, string> = {
@@ -187,7 +189,7 @@ export default function WorkflowTracker({ data }: Props) {
                   { key: 'pendingAt', label: 'Awaiting Level' },
                   { key: 'daysAtCurrentLevel', label: 'Days at Level' },
                   { key: 'totalDaysSinceSubmission', label: 'Total Days' },
-                  { key: 'overallStatus', label: 'Status' },
+                  { key: 'jotformStatus', label: 'Status' },
                 ].map(col => (
                   <th
                     key={col.key}
@@ -273,8 +275,14 @@ export default function WorkflowTracker({ data }: Props) {
                   <td className="px-4 py-3 text-sm text-gray-300">{sub.daysAtCurrentLevel}d</td>
                   <td className="px-4 py-3 text-sm text-gray-300">{sub.totalDaysSinceSubmission}d</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold status-${sub.overallStatus}`}>
-                      {sub.overallStatus}
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                      /complet|approv/i.test(sub.jotformStatus) ? 'bg-emerald-500/20 text-emerald-400' :
+                      /reject|denied/i.test(sub.jotformStatus) ? 'bg-red-500/20 text-red-400' :
+                      /progress/i.test(sub.jotformStatus) ? 'bg-blue-500/20 text-blue-400' :
+                      /pending/i.test(sub.jotformStatus) ? 'bg-amber-500/20 text-amber-400' :
+                      'bg-gray-500/20 text-gray-400'
+                    }`}>
+                      {sub.jotformStatus || 'Pending'}
                     </span>
                   </td>
                 </motion.tr>

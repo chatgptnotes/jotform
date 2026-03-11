@@ -147,6 +147,12 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${FORM_ID}/${id}`;
   const formUrl = `https://eforms.mediaoffice.ae/inbox/${FORM_ID}/${id}`;
 
+  const rawOverallStatus = get(FIELD.overallStatus);
+  const jotformStatus = rawOverallStatus ||
+    (currentLevel === 'completed' ? 'Completed' :
+     currentLevel === 'rejected' ? 'Rejected' :
+     history.some(h => h.status === 'approved') ? 'In Progress' : 'Pending');
+
   return {
     id,
     formId: FORM_ID,
@@ -165,6 +171,7 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
     daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
     overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    jotformStatus,
     priority,
     answers: { description, amount, department, email, requester: requesterName },
   };
@@ -210,6 +217,11 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
   const taskUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
   const formUrl = `https://eforms.mediaoffice.ae/inbox/${CONTENT_FORM_ID}/${id}`;
 
+  const rawApprovalStatus = get(CP_FIELD.approvalStatus);
+  const cpJotformStatus = rawApprovalStatus ||
+    (currentLevel === 'completed' ? 'Completed' :
+     currentLevel === 'rejected' ? 'Rejected' : 'Pending');
+
   return {
     id,
     formId: CONTENT_FORM_ID,
@@ -228,6 +240,7 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
     daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
     overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    jotformStatus: cpJotformStatus,
     priority,
     answers: { description, contentType, department, email, requester: requesterName },
   };
@@ -283,6 +296,7 @@ function mapTaskTestSubmission(raw: Record<string, unknown>, workflowSteps: Work
     daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
     overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    jotformStatus: 'Pending',
     priority: 'medium',
     answers: { description: '', department, email, requester: requesterName },
   };
@@ -362,6 +376,12 @@ function mapGenericSubmission(
   const inboxUrl = `https://eforms.mediaoffice.ae/inbox/${formId}/${id}`;
   const prefix = formTitle.split(/\s+/).filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 3) || 'WF';
 
+  const rawGenericStatus = get(fields.overallStatusFieldId);
+  const genericJotformStatus = rawGenericStatus ||
+    (currentLevel === 'completed' ? 'Completed' :
+     currentLevel === 'rejected' ? 'Rejected' :
+     history.some(h => h.status === 'approved') ? 'In Progress' : 'Pending');
+
   return {
     id,
     formId,
@@ -380,6 +400,7 @@ function mapGenericSubmission(
     daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
     overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    jotformStatus: genericJotformStatus,
     priority,
     answers: { description, amount, department, email, requester: requesterName },
     levelFieldMap: fields.levelFields.length > 0
@@ -443,6 +464,7 @@ function mapSupabaseRow(row: Record<string, unknown>): Submission {
     daysAtCurrentLevel: totalDays,
     totalDaysSinceSubmission: totalDays,
     overallStatus: totalDays > 7 ? 'critical' : totalDays > 3 ? 'delayed' : 'on-track',
+    jotformStatus: String(row.status || (currentLevel === 'completed' ? 'Completed' : currentLevel === 'rejected' ? 'Rejected' : 'Pending')),
     priority: 'medium',
     answers: { description: String(row.title || ''), amount: String((mapped.amount as string) || ''), department: String(row.department || ''), email: String((mapped.email as string) || ''), requester: String(row.submitted_by || '') },
   } as Submission;
@@ -577,7 +599,7 @@ export function useSubmissions() {
       result = result.filter(s => s.currentApprovalLevel === level);
     }
     if (filters.department) result = result.filter(s => s.submittedBy.department === filters.department);
-    if (filters.status) result = result.filter(s => s.overallStatus === filters.status);
+    if (filters.status) result = result.filter(s => s.jotformStatus?.toLowerCase().includes(filters.status.toLowerCase()));
     if (filters.dateFrom) result = result.filter(s => s.submissionDate >= filters.dateFrom);
     if (filters.dateTo) result = result.filter(s => s.submissionDate <= filters.dateTo);
     if (filters.search) {
