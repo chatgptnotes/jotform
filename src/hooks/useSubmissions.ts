@@ -27,6 +27,22 @@ async function fetchWorkflowSteps(formId: string): Promise<WorkflowStep[]> {
   }
 }
 
+// ─── Workspace version — bump when switching teams to force full cache clear ──
+const WORKSPACE_VERSION = 'gdmo-bettroi-v1';
+const WS_VERSION_KEY = 'jotflow_workspace_version';
+
+function checkAndClearWorkspaceCaches() {
+  const stored = localStorage.getItem(WS_VERSION_KEY);
+  if (stored !== WORKSPACE_VERSION) {
+    // Workspace changed — nuke ALL jotflow_* caches so no stale data shows
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('jotflow_')) localStorage.removeItem(k);
+    });
+    localStorage.setItem(WS_VERSION_KEY, WORKSPACE_VERSION);
+    Object.keys(workflowCache).forEach(k => delete workflowCache[k]);
+  }
+}
+
 // ─── Clear all JotFlow caches (called after any write action) ─────────────────
 function clearAllJotFlowCaches() {
   // Clear localStorage caches used by formDiscovery
@@ -523,39 +539,26 @@ export function useSubmissions() {
 
   const loadData = useCallback(async (opts?: { force?: boolean }) => {
     const force = opts?.force ?? false;
+    // Always check workspace version on load — clears stale caches if team changed
+    checkAndClearWorkspaceCaches();
     // If force-refreshing after a write action, bust all caches first
     if (force) clearAllJotFlowCaches();
 
     setLoading(true);
     setError(null);
 
-    // ── Phase 1: show Supabase cache instantly ──────────────────────────────
-    // Skip Supabase cache on force refresh — it's stale after a write action.
-    let hasCachedData = false;
-    if (!force) {
-      try {
-        const { data: sbRows } = await supabase
-          .from('jf_submissions')
-          .select('*')
-          .order('submission_date', { ascending: false });
-        if (sbRows && sbRows.length > 0) {
-          setAllSubmissions(sbRows.map(r => mapSupabaseRow(r as Record<string, unknown>)));
-          setLoading(false); // dashboard visible immediately
-          hasCachedData = true;
-        }
-      } catch {
-        // Supabase unavailable — will stay in loading until JotForm responds
-      }
-    }
+    // ── Skip stale Supabase Phase 1 — go straight to fresh JotForm data ──────
+    // Showing stale cached data first causes a visible flicker when workspace
+    // changed or Supabase is out-of-date. We wait for live data instead.
+    const hasCachedData = false;
 
-    // ── Phase 2: discover all enabled forms, fetch submissions dynamically ──
-    // No loading flash — if Phase 1 already showed data, this just swaps it.
+    // ── Fetch all forms + submissions fresh from JotForm ─────────────────────
     try {
       fetch('/api/sync').catch(err => console.warn('[JotFlow] Sync failed:', err));
 
       // Discover all enabled JotForm workflows for this account
       const forms = await fetchUserForms();
-      if (forms.length > 0) setActiveForms(forms);
+      // Don't setActiveForms yet — wait until submissions are ready to avoid mid-load flicker
 
       // Fetch submissions + questions for all forms in parallel
       const formResults = await Promise.all(
@@ -582,6 +585,8 @@ export function useSubmissions() {
             mapped.push(mapGenericSubmission(raw, form.id, form.title, detectedFields, steps));
           }
         }
+        // Batch both state updates together — prevents double render / flicker
+        setActiveForms(forms);
         setAllSubmissions(mapped);
         setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
       } else if (forms.length === 0 && !hasCachedData) {
