@@ -38,10 +38,8 @@ const LEAVE_FORM_ID = '260561840657360';
 const MEDIA_EVENT_FORM_ID = '260561852126354';
 
 // Pure submission forms — no approval status fields, always redirect to JotForm
+// Only truly form-only submissions with NO approval fields at all
 const FORM_ONLY_IDS = new Set([
-  '260562237554357', // IT Support
-  '260701439834862', // Contact Information Collection Form
-  '260657596557070', // Sign Form
   '260658067584064', // Blank/template Form
   '260673958643066', // Task test form
 ]);
