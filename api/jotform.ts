@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const JOTFORM_BASE = 'https://eforms.mediaoffice.ae/API';
 const API_KEY = process.env.JOTFORM_API_KEY;
+const TEAM_ID = process.env.JOTFORM_TEAM_ID || '260541093809054'; // GDMO-Bettroi team
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,6 +19,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const apiPath = (req.query.path as string) || 'user/forms';
   const url = new URL(`${JOTFORM_BASE}/${apiPath}`);
   url.searchParams.set('apiKey', API_KEY);
+
+  // Always pass teamID so all requests are scoped to the GDMO-Bettroi team
+  url.searchParams.set('teamID', TEAM_ID);
 
   // Forward other query params
   for (const [key, val] of Object.entries(req.query)) {

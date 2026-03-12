@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const JOTFORM_BASE = 'https://eforms.mediaoffice.ae/API';
 const API_KEY = process.env.JOTFORM_API_KEY;
+const TEAM_ID = process.env.JOTFORM_TEAM_ID || '260541093809054';
 
 // Levels that require a digital signature for approval
 const SIGNATURE_REQUIRED_LEVELS = [3, 4];
@@ -41,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const url = `${JOTFORM_BASE}/submission/${submissionId}?apiKey=${API_KEY!}`;
+    const url = `${JOTFORM_BASE}/submission/${submissionId}?apiKey=${API_KEY!}&teamID=${TEAM_ID}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
