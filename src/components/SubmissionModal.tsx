@@ -84,7 +84,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   const level = typeof submission?.currentApprovalLevel === 'number' ? submission.currentApprovalLevel : null;
   const signatureRequired = level !== null && SIGNATURE_REQUIRED_LEVELS.includes(level);
   // Check if this form supports direct approval (has known field map)
-  const supportsDirectApproval = level !== null && getFieldMap(submission, level) !== null;
+  const supportsDirectApproval = submission !== null && level !== null && getFieldMap(submission, level) !== null;
   // Comment is optional — signature is required only for L3/L4 approvals
   const approveEnabled = !signatureRequired || signature !== '';
   const rejectEnabled = true;
