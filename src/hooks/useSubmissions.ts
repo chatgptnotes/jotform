@@ -55,10 +55,8 @@ const TASK_TEST_FORM_TITLE = 'Task Workflow (Test)';
 
 // Pure submission forms — no approval status fields; always show "Open in JotForm"
 const FORM_ONLY_IDS = new Set([
-  '260562237554357', // IT Support
-  '260701439834862', // Contact Information Collection Form
-  '260657596557070', // Sign Form
-  '260658067584064', // Blank/template Form
+  // IT Support, Contact Info, Sign Form removed — they now have L1/L2 status fields (Mar 12 2026)
+  '260658067584064', // Blank/template Form — still no status fields
 ]);
 
 // ─── Field ID map for form 260562405560351 (Purchase Order) ───────────────────
