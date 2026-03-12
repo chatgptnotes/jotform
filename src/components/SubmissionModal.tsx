@@ -56,7 +56,9 @@ function getFieldMap(submission: Submission, level: number): FieldMap | null {
     const lf = submission.levelFieldMap.find(m => m.level === level);
     if (lf) return { statusField: lf.statusFieldId, approverField: lf.approverFieldId, overallStatusField: lf.overallStatusFieldId };
   }
-  return null; // no field map available
+  // Forms with no approval status fields (e.g. IT Support pure submission forms)
+  // — return null so the modal falls back to redirecting to JotForm
+  return null;
 }
 
 // Director-level approvals require signature
@@ -95,7 +97,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     const lvl = submission.currentApprovalLevel;
     const fields = getFieldMap(submission, lvl);
     if (!fields) {
-      setPushResult({ success: false, message: `Direct approval is not supported for this form (${submission.formId}). Please action it in JotForm directly.` });
+      setPushResult({ success: false, message: `This form requires action in JotForm. Click "Open in JotForm" above to approve or reject directly.` });
       setApproving(false);
       setRejecting(false);
       return;

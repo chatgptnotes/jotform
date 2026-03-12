@@ -42,6 +42,11 @@ const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
     1: 'approval',  // Step 1: Approval
     2: 'form',      // Step 2: IT Support form submission
   },
+  // IT Support Request — pure submission form (no approval status fields)
+  // Level 1 links to JotForm to fill/view the form directly
+  '260562237554357': {
+    1: 'form',      // Step 1: IT Support form — open in JotForm
+  },
 };
 
 /**
