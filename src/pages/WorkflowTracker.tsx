@@ -314,7 +314,7 @@ export default function WorkflowTracker({ data }: Props) {
         </div>
       </div>
 
-      <SubmissionModal submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} onUpdate={() => { setSelectedSubmission(null); data.refresh(); }} />
+      <SubmissionModal submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} onUpdate={(_id, _lvl, _status) => { setSelectedSubmission(null); data.refresh({ force: true }); }} />
     </div>
   );
 }

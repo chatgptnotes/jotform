@@ -25,6 +25,16 @@ async function fetchWorkflowSteps(formId: string): Promise<WorkflowStep[]> {
   }
 }
 
+// ─── Clear all JotFlow caches (called after any write action) ─────────────────
+function clearAllJotFlowCaches() {
+  // Clear localStorage caches used by formDiscovery
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('jotflow_')) localStorage.removeItem(k);
+  });
+  // Clear in-process workflow step cache
+  Object.keys(workflowCache).forEach(k => delete workflowCache[k]);
+}
+
 function getActionType(steps: WorkflowStep[], currentLevel: number | string): WorkflowActionType {
   if (typeof currentLevel !== 'number') return 'approval';
   const step = steps.find(s => s.level === currentLevel);
@@ -499,26 +509,31 @@ export function useSubmissions() {
   const [sort, setSort] = useState<SortConfig>({ key: 'submissionDate', direction: 'desc' });
   const [pagination, setPagination] = useState<PaginationConfig>({ page: 1, perPage: 25, total: 0 });
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (opts?: { force?: boolean }) => {
+    const force = opts?.force ?? false;
+    // If force-refreshing after a write action, bust all caches first
+    if (force) clearAllJotFlowCaches();
+
     setLoading(true);
     setError(null);
 
     // ── Phase 1: show Supabase cache instantly ──────────────────────────────
-    // Supabase responds in ~100 ms, so the dashboard appears immediately
-    // instead of waiting 3-5 s for the JotForm API.
+    // Skip Supabase cache on force refresh — it's stale after a write action.
     let hasCachedData = false;
-    try {
-      const { data: sbRows } = await supabase
-        .from('jf_submissions')
-        .select('*')
-        .order('submission_date', { ascending: false });
-      if (sbRows && sbRows.length > 0) {
-        setAllSubmissions(sbRows.map(r => mapSupabaseRow(r as Record<string, unknown>)));
-        setLoading(false); // dashboard visible immediately
-        hasCachedData = true;
+    if (!force) {
+      try {
+        const { data: sbRows } = await supabase
+          .from('jf_submissions')
+          .select('*')
+          .order('submission_date', { ascending: false });
+        if (sbRows && sbRows.length > 0) {
+          setAllSubmissions(sbRows.map(r => mapSupabaseRow(r as Record<string, unknown>)));
+          setLoading(false); // dashboard visible immediately
+          hasCachedData = true;
+        }
+      } catch {
+        // Supabase unavailable — will stay in loading until JotForm responds
       }
-    } catch {
-      // Supabase unavailable — will stay in loading until JotForm responds
     }
 
     // ── Phase 2: discover all enabled forms, fetch submissions dynamically ──
@@ -638,6 +653,55 @@ export function useSubmissions() {
   const bottleneckData = useMemo(() => getBottleneckData(allSubmissions), [allSubmissions]);
   const heatmapData = useMemo(() => getHeatmapData(allSubmissions), [allSubmissions]);
 
+  // ─── Optimistic update: immediately patch a submission in state ─────────────
+  // Call this right after a successful write to JotForm so the UI reflects
+  // the new status instantly, without waiting for the next full re-fetch.
+  const optimisticUpdate = useCallback((
+    submissionId: string,
+    patch: {
+      newLevel?: ApprovalLevel | 'completed' | 'rejected';
+      newJotformStatus?: string;
+      approverName?: string;
+      approvalDate?: string;
+    }
+  ) => {
+    setAllSubmissions(prev => prev.map(sub => {
+      if (sub.id !== submissionId) return sub;
+
+      const updatedHistory = [...sub.approvalHistory];
+      const currentLvl = sub.currentApprovalLevel;
+
+      if (patch.newLevel !== undefined && typeof currentLvl === 'number') {
+        // Mark the current level as approved/rejected in history
+        const histIdx = updatedHistory.findIndex(h => h.level === currentLvl);
+        const isRejected = patch.newLevel === 'rejected';
+        const entry = {
+          level: currentLvl as ApprovalLevel,
+          approverName: patch.approverName || updatedHistory[histIdx]?.approverName || `Level ${currentLvl} Approver`,
+          status: (isRejected ? 'rejected' : 'approved') as 'approved' | 'rejected' | 'pending',
+          date: patch.approvalDate || new Date().toISOString().slice(0, 10),
+        };
+        if (histIdx >= 0) updatedHistory[histIdx] = entry;
+        else updatedHistory.push(entry);
+
+        // Add pending entry for next level (if approved and not completed)
+        if (!isRejected && patch.newLevel !== 'completed' && typeof patch.newLevel === 'number') {
+          const nextLvl = patch.newLevel as ApprovalLevel;
+          const nextExists = updatedHistory.findIndex(h => h.level === nextLvl);
+          if (nextExists < 0) updatedHistory.push({ level: nextLvl, approverName: `Level ${nextLvl} Approver`, status: 'pending' });
+        }
+      }
+
+      return {
+        ...sub,
+        currentApprovalLevel: patch.newLevel ?? sub.currentApprovalLevel,
+        jotformStatus: patch.newJotformStatus ?? sub.jotformStatus,
+        approvalHistory: updatedHistory,
+        daysAtCurrentLevel: 0, // reset — just actioned
+      };
+    }));
+  }, []);
+
   return {
     allSubmissions, filteredSubmissions, paginatedSubmissions,
     activeForms,
@@ -648,5 +712,6 @@ export function useSubmissions() {
     pagination, setPagination,
     refreshConfig, setRefreshConfig,
     refresh: loadData,
+    optimisticUpdate,
   };
 }

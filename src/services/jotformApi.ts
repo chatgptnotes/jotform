@@ -131,8 +131,8 @@ class JotFormApiService {
       clearTimeout(timeout);
       const data = await response.json();
       if (data.responseCode === 200) {
-        // Clear cache for this submission
-        this.cache.delete(`submission_${submissionId}`);
+        // Clear ALL cached data — submission list must be re-fetched after any write
+        this.cache.clear();
         return { success: true, message: 'Updated successfully' };
       }
       return { success: false, message: data.message || 'Update failed' };

@@ -233,11 +233,14 @@ export default function DirectorDashboard({ data }: Props) {
     try {
       await pushToJotForm(sub, 'rejected', rejectReason.trim());
       addAuditEntry(sub.id, 'rejected', currentUser.name, `Rejected: ${rejectReason.trim()}`);
+      // Optimistic update — dashboard reflects immediately
+      data.optimisticUpdate(sub.id, { newLevel: 'rejected', newJotformStatus: 'Rejected', approverName: currentUser.name });
       setRejectReason('');
       setRejectingId(null);
       setRejectedIds(prev => new Set([...prev, sub.id]));
       setConfirmRejectId(null);
-      data.refresh();
+      // Force refresh — clears all caches so re-fetch returns live JotForm data
+      data.refresh({ force: true });
     } catch (err) {
       alert(`Rejection failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -642,7 +645,13 @@ export default function DirectorDashboard({ data }: Props) {
         <SubmissionModal
           submission={selectedSubmission}
           onClose={() => setSelectedSubmission(null)}
-          onUpdate={() => { setSelectedSubmission(null); data.refresh(); }}
+          onUpdate={(updatedId, newLevel, newStatus) => {
+            setSelectedSubmission(null);
+            if (updatedId) {
+              data.optimisticUpdate(updatedId, { newLevel, newJotformStatus: newStatus, approverName: currentUser.name });
+            }
+            data.refresh({ force: true });
+          }}
         />
       )}
     </div>

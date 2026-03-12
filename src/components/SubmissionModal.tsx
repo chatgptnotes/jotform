@@ -13,7 +13,8 @@ import { useAuth } from '../contexts/AuthContext';
 interface Props {
   submission: Submission | null;
   onClose: () => void;
-  onUpdate?: () => void;
+  /** Called after a successful approve/reject. Passes submissionId, new level, and new status string so parent can optimistically update. */
+  onUpdate?: (submissionId?: string, newLevel?: import('../types').ApprovalLevel | 'completed' | 'rejected', newJotformStatus?: string) => void;
 }
 
 const levelColors: Record<string, string> = {
@@ -182,7 +183,17 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     setRejecting(false);
 
     if (result.success && onUpdate) {
-      setTimeout(() => onUpdate(), 1500);
+      // Compute new level/status for optimistic update in parent
+      let newLevel: import('../types').ApprovalLevel | 'completed' | 'rejected' | undefined;
+      let newJotformStatus: string | undefined;
+      if (action === 'reject') {
+        newLevel = 'rejected';
+        newJotformStatus = 'Rejected';
+      } else {
+        newLevel = lvl === 4 ? 'completed' : (lvl + 1) as import('../types').ApprovalLevel;
+        newJotformStatus = lvl === 4 ? 'Completed' : 'In Progress';
+      }
+      setTimeout(() => onUpdate(submission.id, newLevel, newJotformStatus), 1200);
     }
   };
 
