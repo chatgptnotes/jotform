@@ -34,11 +34,26 @@ const levelColors: Record<string, string> = {
 
 const PO_FORM_ID = '260562405560351';
 const CP_FORM_ID = '260562114142344';
+const LEAVE_FORM_ID = '260561840657360';
+const MEDIA_EVENT_FORM_ID = '260561852126354';
+
+// Pure submission forms — no approval status fields, always redirect to JotForm
+const FORM_ONLY_IDS = new Set([
+  '260562237554357', // IT Support
+  '260701439834862', // Contact Information Collection Form
+  '260657596557070', // Sign Form
+  '260658067584064', // Blank/template Form
+  '260673958643066', // Task test form
+]);
 
 type FieldMap = { statusField: string; approverField: string | null; overallStatusField: string | null };
 
 function getFieldMap(submission: Submission, level: number): FieldMap | null {
   const formId = submission.formId;
+
+  // Pure submission forms — no direct approval
+  if (FORM_ONLY_IDS.has(formId)) return null;
+
   if (formId === PO_FORM_ID) {
     const po: Record<number, { statusField: string; approverField: string }> = {
       1: { statusField: '8',  approverField: '9'  },
@@ -52,13 +67,20 @@ function getFieldMap(submission: Submission, level: number): FieldMap | null {
   if (formId === CP_FORM_ID && level === 1) {
     return { statusField: '10', approverField: null, overallStatusField: null };
   }
+  // Employee Leave Request — Q8 = Manager Approval (Pending|Approved|Rejected)
+  if (formId === LEAVE_FORM_ID && level === 1) {
+    return { statusField: '8', approverField: null, overallStatusField: null };
+  }
+  // Media Event Planning — Q11 = Approval Status (single overall status field)
+  if (formId === MEDIA_EVENT_FORM_ID && level === 1) {
+    return { statusField: '11', approverField: null, overallStatusField: '11' };
+  }
   // Dynamic form: use levelFieldMap populated by the generic mapper
   if (submission.levelFieldMap) {
     const lf = submission.levelFieldMap.find(m => m.level === level);
     if (lf) return { statusField: lf.statusFieldId, approverField: lf.approverFieldId, overallStatusField: lf.overallStatusFieldId };
   }
-  // Forms with no approval status fields (e.g. IT Support pure submission forms)
-  // — return null so the modal falls back to redirecting to JotForm
+  // Unknown form — redirect to JotForm
   return null;
 }
 

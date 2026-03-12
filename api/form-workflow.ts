@@ -43,9 +43,24 @@ const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
     2: 'form',      // Step 2: IT Support form submission
   },
   // IT Support Request — pure submission form (no approval status fields)
-  // Level 1 links to JotForm to fill/view the form directly
   '260562237554357': {
-    1: 'form',      // Step 1: IT Support form — open in JotForm
+    1: 'form',
+  },
+  // Contact Information Collection Form — pure data collection, no approval
+  '260701439834862': {
+    1: 'form',
+  },
+  // Sign Form — pure signature collection, no approval
+  '260657596557070': {
+    1: 'form',
+  },
+  // Blank/template Form — no approval fields
+  '260658067584064': {
+    1: 'form',
+  },
+  // Employee Leave Request — single-level manager approval
+  '260561840657360': {
+    1: 'approval',
   },
 };
 

@@ -53,6 +53,14 @@ const CONTENT_FORM_TITLE = 'Content Publishing Approval Request';
 const TASK_TEST_FORM_ID = '260673958643066';
 const TASK_TEST_FORM_TITLE = 'Task Workflow (Test)';
 
+// Pure submission forms — no approval status fields; always show "Open in JotForm"
+const FORM_ONLY_IDS = new Set([
+  '260562237554357', // IT Support
+  '260701439834862', // Contact Information Collection Form
+  '260657596557070', // Sign Form
+  '260658067584064', // Blank/template Form
+]);
+
 // ─── Field ID map for form 260562405560351 (Purchase Order) ───────────────────
 const FIELD = {
   requesterName: '2', email: '3', department: '4',
@@ -575,6 +583,10 @@ export function useSubmissions() {
               mapped.push(mapContentPublishingSubmission(raw, steps));
             } else if (form.id === TASK_TEST_FORM_ID) {
               mapped.push(mapTaskTestSubmission(raw, steps));
+            } else if (FORM_ONLY_IDS.has(form.id)) {
+              // Pure submission form — map generically but force actionType to 'form'
+              const sub = mapGenericSubmission(raw, form.id, form.title, detectedFields, steps);
+              mapped.push({ ...sub, actionType: 'form' });
             } else {
               mapped.push(mapGenericSubmission(raw, form.id, form.title, detectedFields, steps));
             }
