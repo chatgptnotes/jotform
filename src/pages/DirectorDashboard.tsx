@@ -32,11 +32,56 @@ function AgingCell({ days }: { days: number }) {
 }
 
 function PendingWithCell({ submission }: { submission: Submission }) {
-  const pendingEntry = submission.approvalHistory.find(a => a.status === 'pending');
-  if (!pendingEntry) return <span className="text-gray-600">--</span>;
+  const { currentApprovalLevel, approvalHistory } = submission;
+
+  // Completed or rejected — nothing pending
+  if (currentApprovalLevel === 'completed') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+        <span className="text-xs text-emerald-400 font-medium">Completed</span>
+      </div>
+    );
+  }
+  if (currentApprovalLevel === 'rejected') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <XCircle className="w-3.5 h-3.5 text-red-400" />
+        <span className="text-xs text-red-400 font-medium">Rejected</span>
+      </div>
+    );
+  }
+
+  // Find the pending entry ONLY at the current active level
+  const pendingEntry = typeof currentApprovalLevel === 'number'
+    ? approvalHistory.find(a => a.level === currentApprovalLevel && a.status === 'pending')
+    : approvalHistory.find(a => a.status === 'pending');
+
+  // If current level exists in history but is NOT pending (already acted), show acted status
+  const currentEntry = typeof currentApprovalLevel === 'number'
+    ? approvalHistory.find(a => a.level === currentApprovalLevel)
+    : null;
+
+  if (!pendingEntry) {
+    if (currentEntry && currentEntry.status !== 'pending') {
+      return (
+        <div className="flex items-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+          <div>
+            <p className="text-xs text-emerald-400 font-medium">
+              {currentEntry.status === 'approved' ? 'Approved' : 'Rejected'}
+            </p>
+            <p className="text-[10px] text-gray-500">by {currentEntry.approverName}</p>
+          </div>
+        </div>
+      );
+    }
+    return <span className="text-gray-600 text-xs">--</span>;
+  }
+
   return (
     <div className="flex items-center gap-2">
-      <div className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center">
+      <div className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
         <User className="w-3.5 h-3.5 text-purple-400" />
       </div>
       <div>
