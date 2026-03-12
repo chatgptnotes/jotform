@@ -83,6 +83,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
 
   const level = typeof submission?.currentApprovalLevel === 'number' ? submission.currentApprovalLevel : null;
   const signatureRequired = level !== null && SIGNATURE_REQUIRED_LEVELS.includes(level);
+  // Check if this form supports direct approval (has known field map)
+  const supportsDirectApproval = level !== null && getFieldMap(submission, level) !== null;
   // Comment is optional — signature is required only for L3/L4 approvals
   const approveEnabled = !signatureRequired || signature !== '';
   const rejectEnabled = true;
@@ -468,7 +470,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                       </button>
                     </div>
                   </div>
-                ) : (
+                ) : supportsDirectApproval ? (
                   <div className="flex gap-3 pt-1">
                     <button
                       type="button"
@@ -486,6 +488,20 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     >
                       <XCircle className="w-4 h-4" /> Reject
                     </button>
+                  </div>
+                ) : (
+                  <div className="pt-1 space-y-3">
+                    <div className="p-3 rounded-lg text-sm bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                      This form must be approved directly in JotForm Enterprise.
+                    </div>
+                    <a
+                      href={submission.taskUrl || submission.formUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold transition-all w-full"
+                    >
+                      <ExternalLink className="w-4 h-4" /> Open in JotForm to Action
+                    </a>
                   </div>
                 )}
 
