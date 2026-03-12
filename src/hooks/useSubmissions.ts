@@ -28,7 +28,7 @@ async function fetchWorkflowSteps(formId: string): Promise<WorkflowStep[]> {
 }
 
 // ─── Workspace version — bump when switching teams to force full cache clear ──
-const WORKSPACE_VERSION = 'gdmo-bettroi-v1';
+const WORKSPACE_VERSION = 'gdmo-bettroi-v2'; // bumped: fix qid injection in question cache
 const WS_VERSION_KEY = 'jotflow_workspace_version';
 
 function checkAndClearWorkspaceCaches() {

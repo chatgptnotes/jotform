@@ -77,7 +77,7 @@ export async function fetchUserForms(): Promise<JFFormMeta[]> {
 
 // ─── Form questions ───────────────────────────────────────────────────────────
 export async function fetchFormQuestions(formId: string): Promise<Record<string, JFQuestion>> {
-  const key = `jotflow_q2_${formId}`; // v2 — forces cache bust after adding status fields Mar 12 2026
+  const key = `jotflow_q3_${formId}`; // v3 — inject qid from dict key (Mar 12 2026)
   try {
     const cached = localStorage.getItem(key);
     if (cached) {
@@ -90,7 +90,12 @@ export async function fetchFormQuestions(formId: string): Promise<Record<string,
     const res = await fetch(`/api/jotform?path=form/${formId}/questions`);
     if (!res.ok) return {};
     const data = await res.json();
-    const questions: Record<string, JFQuestion> = data.content || {};
+    // Inject qid from the dict key — JotForm API doesn't include it inside the object
+    const raw = data.content || {};
+    const questions: Record<string, JFQuestion> = {};
+    for (const [qid, q] of Object.entries(raw)) {
+      questions[qid] = { ...(q as JFQuestion), qid };
+    }
     localStorage.setItem(key, JSON.stringify({ questions, ts: Date.now() }));
     return questions;
   } catch {
