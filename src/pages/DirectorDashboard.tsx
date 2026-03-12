@@ -228,7 +228,7 @@ export default function DirectorDashboard({ data }: Props) {
   };
 
   const handleReject = async (sub: Submission) => {
-    if (!rejectReason.trim()) return;
+    // reason is optional — consistent with modal reject behaviour
     setActionLoading(sub.id);
     try {
       await pushToJotForm(sub, 'rejected', rejectReason.trim());
@@ -546,8 +546,8 @@ export default function DirectorDashboard({ data }: Props) {
                                     className="w-28 px-2 py-1 text-xs rounded bg-navy-dark border border-red-500/30 text-white placeholder-gray-600 focus:outline-none"
                                   />
                                   <button
-                                    onClick={() => rejectReason.trim() && setConfirmRejectId(sub.id)}
-                                    disabled={!rejectReason.trim()}
+                                    onClick={() => setConfirmRejectId(sub.id)}
+                                    disabled={false}
                                     className="px-2 py-1 rounded bg-red-500/30 text-red-400 text-xs hover:bg-red-500/40 disabled:opacity-50"
                                   >
                                     OK

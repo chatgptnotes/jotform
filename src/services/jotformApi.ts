@@ -135,7 +135,8 @@ class JotFormApiService {
         this.cache.clear();
         return { success: true, message: 'Updated successfully' };
       }
-      return { success: false, message: data.message || 'Update failed' };
+      // Server error responses use `data.error`; JotForm API errors use `data.message`
+      return { success: false, message: data.error || data.message || 'Update failed' };
     } catch (err) {
       return { success: false, message: `Error: ${(err as Error).message}` };
     }
