@@ -59,8 +59,8 @@ function getFieldMap(submission: Submission, level: number): FieldMap | null {
   return null; // no field map available
 }
 
-// Director-level approvals require signature
-const SIGNATURE_REQUIRED_LEVELS = [3, 4];
+// Signature requirement disabled — approvals at all levels proceed without signature
+const SIGNATURE_REQUIRED_LEVELS: number[] = [];
 
 export default function SubmissionModal({ submission, onClose, onUpdate }: Props) {
   const { user } = useAuth();

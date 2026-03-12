@@ -3,8 +3,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const JOTFORM_BASE = 'https://eforms.mediaoffice.ae/API';
 const API_KEY = process.env.JOTFORM_API_KEY;
 
-// Levels that require a digital signature for approval
-const SIGNATURE_REQUIRED_LEVELS = [3, 4];
+// Signature requirement disabled — all levels approve without signature
+const SIGNATURE_REQUIRED_LEVELS: number[] = [];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
