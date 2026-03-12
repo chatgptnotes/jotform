@@ -12,6 +12,7 @@ import CommentPanel from '../components/CommentPanel';
 import SubmissionModal from '../components/SubmissionModal';
 import { getUserConfig } from '../config/currentUser';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface Props {
   data: ReturnType<typeof useSubmissions>;
@@ -280,12 +281,14 @@ export default function DirectorDashboard({ data }: Props) {
       addAuditEntry(sub.id, 'rejected', currentUser.name, `Rejected: ${rejectReason.trim()}`);
       // Optimistic update — dashboard reflects immediately
       data.optimisticUpdate(sub.id, { newLevel: 'rejected', newJotformStatus: 'Rejected', approverName: currentUser.name });
+      // Patch Supabase cache so next reload also reflects rejection
+      supabase.from('jf_submissions').update({ current_level: sub.currentApprovalLevel, status: 'rejected', approver_name: currentUser.name, last_synced: new Date().toISOString() }).eq('jotform_submission_id', sub.id).then(() => {});
       setRejectReason('');
       setRejectingId(null);
       setRejectedIds(prev => new Set([...prev, sub.id]));
       setConfirmRejectId(null);
-      // Force refresh — clears all caches so re-fetch returns live JotForm data
-      data.refresh({ force: true });
+      // Force refresh after brief delay — gives JotForm time to propagate update
+      setTimeout(() => data.refresh({ force: true }), 3000);
     } catch (err) {
       alert(`Rejection failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -695,7 +698,8 @@ export default function DirectorDashboard({ data }: Props) {
             if (updatedId) {
               data.optimisticUpdate(updatedId, { newLevel, newJotformStatus: newStatus, approverName: currentUser.name });
             }
-            data.refresh({ force: true });
+            // Delay force refresh by 3s to let JotForm propagate the update
+            setTimeout(() => data.refresh({ force: true }), 3000);
           }}
         />
       )}

@@ -9,6 +9,7 @@ import jotformApi from '../services/jotformApi';
 import SignaturePad from './SignaturePad';
 import { getUserConfig } from '../config/currentUser';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface Props {
   submission: Submission | null;
@@ -197,6 +198,21 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
         newLevel = lvl === 4 ? 'completed' : (lvl + 1) as import('../types').ApprovalLevel;
         newJotformStatus = lvl === 4 ? 'Completed' : 'In Progress';
       }
+
+      // Immediately patch Supabase cache so next reload shows correct level
+      const sbStatus = action === 'reject' ? 'rejected' : (lvl === 4 ? 'completed' : 'in_progress');
+      const sbLevel = action === 'reject' ? lvl : (lvl === 4 ? lvl : lvl + 1);
+      supabase
+        .from('jf_submissions')
+        .update({
+          current_level: sbLevel,
+          status: sbStatus,
+          approver_name: currentUser.name,
+          last_synced: new Date().toISOString(),
+        })
+        .eq('jotform_submission_id', submission.id)
+        .then(() => {}); // fire and forget — don't block UI
+
       setTimeout(() => onUpdate(submission.id, newLevel, newJotformStatus), 1200);
     }
   };
