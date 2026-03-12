@@ -23,8 +23,8 @@ export interface WorkflowStep {
 const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
   // Purchase Order Approval — 4-level workflow
   '260562405560351': {
-    1: 'form',      // Level 1: Requester fills in a form → View Form button
-    2: 'task',      // Level 2: Finance team processes a task → View Task button
+    1: 'approval',  // Level 1: First reviewer approves the submitted request
+    2: 'approval',  // Level 2: Second reviewer approves
     3: 'approval',  // Level 3: Director approves + signs → Review & Sign
     4: 'approval',  // Level 4: Executive final approval + sign → Review & Sign
   },
