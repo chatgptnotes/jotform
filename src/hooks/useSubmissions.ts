@@ -342,10 +342,14 @@ function mapGenericSubmission(
   const history: ApprovalEntry[] = [];
   let currentLevel: ApprovalLevel | 'completed' | 'rejected' = 1 as ApprovalLevel;
 
+  // Evaluator email from submission answers (e.g. "Evaluator Email: bk@bettroi.com")
+  const evaluatorEmail = fields.evaluatorEmailFieldId ? get(fields.evaluatorEmailFieldId) : '';
+
   if (fields.levelFields.length > 0) {
     for (const lf of fields.levelFields) {
       const statusVal = get(lf.statusFieldId).toLowerCase();
-      const approverName = get(lf.approverFieldId) || `Level ${lf.level} Approver`;
+      // Use evaluator email as approver name if available, else fall back to approver field or default
+      const approverName = get(lf.approverFieldId) || evaluatorEmail || `Level ${lf.level} Approver`;
       const date = get(lf.dateFieldId) || undefined;
       if (statusVal === 'approved') {
         history.push({ level: lf.level as ApprovalLevel, approverName, status: 'approved', date });
@@ -369,7 +373,7 @@ function mapGenericSubmission(
     else currentLevel = 1 as ApprovalLevel;
 
     const histStatus = typeof currentLevel === 'number' ? 'pending' : currentLevel === 'completed' ? 'approved' : 'rejected';
-    history.push({ level: 1 as ApprovalLevel, approverName: 'Approver', status: histStatus });
+    history.push({ level: 1 as ApprovalLevel, approverName: evaluatorEmail || 'Approver', status: histStatus });
   }
 
   // Overall status field can override level computation

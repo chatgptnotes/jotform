@@ -28,6 +28,7 @@ export interface DetectedFields {
   descFieldId:          string | null;
   amountFieldId:        string | null;
   overallStatusFieldId: string | null;
+  evaluatorEmailFieldId: string | null;  // field that holds next approver's email
   levelFields:          LevelFieldGroup[];
 }
 
@@ -104,10 +105,11 @@ export function detectFields(questions: Record<string, JFQuestion>): DetectedFie
   let nameFieldId:          string | null = null;
   let emailFieldId:         string | null = null;
   let deptFieldId:          string | null = null;
-  let priorityFieldId:      string | null = null;
-  let descFieldId:          string | null = null;
-  let amountFieldId:        string | null = null;
-  let overallStatusFieldId: string | null = null;
+  let priorityFieldId:       string | null = null;
+  let descFieldId:           string | null = null;
+  let amountFieldId:         string | null = null;
+  let overallStatusFieldId:  string | null = null;
+  let evaluatorEmailFieldId: string | null = null;
 
   // level → { status, approver, date }
   const byLevel: Record<number, { s?: string; a?: string; d?: string }> = {};
@@ -154,6 +156,13 @@ export function detectFields(questions: Record<string, JFQuestion>): DetectedFie
       lbl.includes(' cost') || lbl.includes('value') || lbl.includes('price')
     )) { amountFieldId = id; continue; }
 
+    // ── evaluator / approver email (next step assignee) ──
+    if (!evaluatorEmailFieldId && (
+      lbl.includes('evaluator') || lbl.includes('approver email') ||
+      lbl.includes('reviewer email') || lbl.includes('assigned to') ||
+      lbl.includes('send to') || (lbl.includes('email') && (lbl.includes('evaluat') || lbl.includes('approv')))
+    )) { evaluatorEmailFieldId = id; continue; }
+
     // ── overall / final status (no level number) ──
     const hasLevel = /(?:^|\s)(?:l|level|stage)\s*[1-4](?:\s|$)/.test(lbl);
     if (!overallStatusFieldId && !hasLevel && (
@@ -196,6 +205,6 @@ export function detectFields(questions: Record<string, JFQuestion>): DetectedFie
 
   return {
     nameFieldId, emailFieldId, deptFieldId, priorityFieldId,
-    descFieldId, amountFieldId, overallStatusFieldId, levelFields,
+    descFieldId, amountFieldId, overallStatusFieldId, evaluatorEmailFieldId, levelFields,
   };
 }

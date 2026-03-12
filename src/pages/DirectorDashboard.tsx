@@ -89,13 +89,18 @@ function PendingWithCell({ submission }: { submission: Submission }) {
     return <span className="text-gray-600 text-xs">--</span>;
   }
 
+  const isEmail = pendingEntry.approverName.includes('@');
   return (
     <div className="flex items-center gap-2">
-      <div className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-        <User className="w-3.5 h-3.5 text-purple-400" />
+      <div className="w-7 h-7 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0 shrink-0">
+        {isEmail
+          ? <span className="text-purple-400 text-[10px] font-bold">@</span>
+          : <User className="w-3.5 h-3.5 text-purple-400" />}
       </div>
-      <div>
-        <p className="text-sm text-white leading-tight">{pendingEntry.approverName}</p>
+      <div className="min-w-0">
+        <p className="text-sm text-white leading-tight truncate max-w-[160px]" title={pendingEntry.approverName}>
+          {pendingEntry.approverName}
+        </p>
         <p className="text-xs text-gray-500">Level {pendingEntry.level}</p>
       </div>
     </div>
