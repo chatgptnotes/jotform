@@ -118,7 +118,7 @@ export default function KanbanBoard({ data }: Props) {
         ))}
       </div>
 
-      <SubmissionModal submission={selected} onClose={() => setSelected(null)} />
+      <SubmissionModal submission={selected} onClose={() => setSelected(null)} onUpdate={(_id, _lvl, _status) => { setSelected(null); data.refresh({ force: true }); }} />
     </div>
   );
 }
