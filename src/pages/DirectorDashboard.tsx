@@ -33,7 +33,16 @@ function AgingCell({ days }: { days: number }) {
 }
 
 function PendingWithCell({ submission }: { submission: Submission }) {
-  const { currentApprovalLevel, approvalHistory } = submission;
+  const { currentApprovalLevel, approvalHistory, actionType } = submission;
+
+  // Form-only submissions — JotForm tracks approval internally, we can't read the level
+  if (actionType === 'form') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs text-gray-500 italic">Tracked in JotForm</span>
+      </div>
+    );
+  }
 
   // Completed or rejected — nothing pending
   if (currentApprovalLevel === 'completed') {
@@ -495,7 +504,9 @@ export default function DirectorDashboard({ data }: Props) {
                       <p className="text-xs text-gray-500">{sub.submittedBy.department}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <LevelBadge level={sub.currentApprovalLevel} />
+                      {sub.actionType === 'form'
+                        ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-500/20 text-gray-500">--</span>
+                        : <LevelBadge level={sub.currentApprovalLevel} />}
                     </td>
                     <td className="px-4 py-3">
                       <PendingWithCell submission={sub} />
