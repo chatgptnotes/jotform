@@ -45,7 +45,7 @@ const QUESTIONS_TTL = 60 * 60 * 1000; // 1 hr (questions rarely change)
 
 // ─── User forms list ──────────────────────────────────────────────────────────
 export async function fetchUserForms(): Promise<JFFormMeta[]> {
-  const key = 'jotflow_forms_v2';
+  const key = 'jotflow_forms_v4';
   try {
     const cached = localStorage.getItem(key);
     if (cached) {

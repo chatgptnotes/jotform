@@ -574,20 +574,8 @@ export function useSubmissions() {
         const mapped: Submission[] = [];
         for (const { form, rows, detectedFields, steps } of formResults) {
           for (const raw of rows) {
-            // Use specific mappers for known forms; generic mapper for all others
-            if (form.id === FORM_ID) {
-              mapped.push(mapJotFormSubmission(raw, steps));
-            } else if (form.id === CONTENT_FORM_ID) {
-              mapped.push(mapContentPublishingSubmission(raw, steps));
-            } else if (form.id === TASK_TEST_FORM_ID) {
-              mapped.push(mapTaskTestSubmission(raw, steps));
-            } else if (FORM_ONLY_IDS.has(form.id)) {
-              // Pure submission form — map generically but force actionType to 'form'
-              const sub = mapGenericSubmission(raw, form.id, form.title, detectedFields, steps);
-              mapped.push({ ...sub, actionType: 'form' });
-            } else {
-              mapped.push(mapGenericSubmission(raw, form.id, form.title, detectedFields, steps));
-            }
+            // All forms from GDMO-Bettroi team use the generic mapper (auto field detection)
+            mapped.push(mapGenericSubmission(raw, form.id, form.title, detectedFields, steps));
           }
         }
         setAllSubmissions(mapped);

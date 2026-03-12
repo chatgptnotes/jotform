@@ -21,6 +21,18 @@ export interface WorkflowStep {
  * needing to rename questions in JotForm.
  */
 const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
+  // ── GDMO-Bettroi Team Forms (team ID: 260541093809054) ─────────────────────
+  '260633608278058': { // Proj Completion
+    1: 'approval', 2: 'approval', 3: 'approval',
+  },
+  '260633424454050': { // Supplier Rating
+    1: 'approval', 2: 'approval',
+  },
+  '260561554311046': { // Form (generic)
+    1: 'approval',
+  },
+
+  // ── Legacy personal workspace forms (kept for reference) ───────────────────
   // Purchase Order Approval — 4-level workflow
   '260562405560351': {
     1: 'approval',  // Level 1: First reviewer approves the submitted request
