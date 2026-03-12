@@ -34,6 +34,9 @@ const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
   '260703226946458': { // Test Approval Workflow — Sahil → Huzaifa (L1) → Murali BK (L2)
     1: 'approval', 2: 'approval',
   },
+  '260702886904463': { // Title Me Form — Submit → BK approve+sign (L1) → BK task (L2) → Huzaifa approve+sign+ViewForm (L3)
+    1: 'approval', 2: 'task', 3: 'approval',
+  },
 
   // ── Legacy personal workspace forms (kept for reference) ───────────────────
   // Purchase Order Approval — 4-level workflow

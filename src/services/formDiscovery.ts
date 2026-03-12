@@ -28,7 +28,8 @@ export interface DetectedFields {
   descFieldId:          string | null;
   amountFieldId:        string | null;
   overallStatusFieldId: string | null;
-  evaluatorEmailFieldId: string | null;  // field that holds next approver's email
+  evaluatorEmailFieldId: string | null;            // single-level: next approver email
+  evaluatorEmailsByLevel: Record<number, string>;  // multi-level: level → evaluator email field id
   levelFields:          LevelFieldGroup[];
 }
 
@@ -77,7 +78,7 @@ export async function fetchUserForms(): Promise<JFFormMeta[]> {
 
 // ─── Form questions ───────────────────────────────────────────────────────────
 export async function fetchFormQuestions(formId: string): Promise<Record<string, JFQuestion>> {
-  const key = `jotflow_q3_${formId}`; // v3 — inject qid from dict key (Mar 12 2026)
+  const key = `jotflow_q4_${formId}`; // v3 — inject qid from dict key (Mar 12 2026)
   try {
     const cached = localStorage.getItem(key);
     if (cached) {
@@ -115,6 +116,7 @@ export function detectFields(questions: Record<string, JFQuestion>): DetectedFie
   let amountFieldId:         string | null = null;
   let overallStatusFieldId:  string | null = null;
   let evaluatorEmailFieldId: string | null = null;
+  const evaluatorEmailsByLevel: Record<number, string> = {}; // level → field id
 
   // level → { status, approver, date }
   const byLevel: Record<number, { s?: string; a?: string; d?: string }> = {};
@@ -132,7 +134,14 @@ export function detectFields(questions: Record<string, JFQuestion>): DetectedFie
       lbl.includes('applicant') || lbl.includes('employee name')
     )) { nameFieldId = id; continue; }
 
-    // ── evaluator / approver email (next step assignee) — check BEFORE generic email ──
+    // ── per-level evaluator email (e.g. "L1 Evaluator Email", "L2 Evaluator Email") ──
+    const levelEmailMatch = lbl.match(/^(?:l|level)\s*([1-4])\s+(?:evaluator|approver|reviewer)\s+email$/);
+    if (levelEmailMatch) {
+      evaluatorEmailsByLevel[parseInt(levelEmailMatch[1])] = id;
+      continue;
+    }
+
+    // ── single evaluator / approver email (next step assignee) — check BEFORE generic email ──
     if (!evaluatorEmailFieldId && (
       lbl.includes('evaluator') || lbl === 'approver email' ||
       lbl.includes('reviewer email') || lbl.includes('assigned to') ||
@@ -210,6 +219,7 @@ export function detectFields(questions: Record<string, JFQuestion>): DetectedFie
 
   return {
     nameFieldId, emailFieldId, deptFieldId, priorityFieldId,
-    descFieldId, amountFieldId, overallStatusFieldId, evaluatorEmailFieldId, levelFields,
+    descFieldId, amountFieldId, overallStatusFieldId,
+    evaluatorEmailFieldId, evaluatorEmailsByLevel, levelFields,
   };
 }

@@ -358,14 +358,19 @@ function mapGenericSubmission(
   const history: ApprovalEntry[] = [];
   let currentLevel: ApprovalLevel | 'completed' | 'rejected' = 1 as ApprovalLevel;
 
-  // Evaluator email from submission answers (e.g. "Evaluator Email: bk@bettroi.com")
+  // Evaluator email from submission answers — single or per-level
   const evaluatorEmail = fields.evaluatorEmailFieldId ? get(fields.evaluatorEmailFieldId) : '';
+  const getEvaluatorEmail = (level: number): string => {
+    const perLevelFieldId = fields.evaluatorEmailsByLevel?.[level];
+    if (perLevelFieldId) return get(perLevelFieldId);
+    return evaluatorEmail; // fallback to single evaluator email
+  };
 
   if (fields.levelFields.length > 0) {
     for (const lf of fields.levelFields) {
       const statusVal = get(lf.statusFieldId).toLowerCase();
-      // Use evaluator email as approver name if available, else fall back to approver field or default
-      const approverName = get(lf.approverFieldId) || evaluatorEmail || `Level ${lf.level} Approver`;
+      // Use per-level evaluator email, then approver field, then fallback
+      const approverName = get(lf.approverFieldId) || getEvaluatorEmail(lf.level) || `Level ${lf.level} Approver`;
       const date = get(lf.dateFieldId) || undefined;
       if (statusVal === 'approved') {
         history.push({ level: lf.level as ApprovalLevel, approverName, status: 'approved', date });
