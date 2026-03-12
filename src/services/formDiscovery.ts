@@ -76,7 +76,7 @@ export async function fetchUserForms(): Promise<JFFormMeta[]> {
 
 // ─── Form questions ───────────────────────────────────────────────────────────
 export async function fetchFormQuestions(formId: string): Promise<Record<string, JFQuestion>> {
-  const key = `jotflow_q_${formId}`;
+  const key = `jotflow_q2_${formId}`; // v2 — forces cache bust after adding status fields Mar 12 2026
   try {
     const cached = localStorage.getItem(key);
     if (cached) {

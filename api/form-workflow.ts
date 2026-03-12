@@ -42,19 +42,22 @@ const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
     1: 'approval',  // Step 1: Approval
     2: 'form',      // Step 2: IT Support form submission
   },
-  // IT Support Request — pure submission form (no approval status fields)
+  // IT Support Request — now has L1+L2 status fields (Q9-Q15)
   '260562237554357': {
-    1: 'form',
+    1: 'approval',
+    2: 'approval',
   },
-  // Contact Information Collection Form — pure data collection, no approval
+  // Contact Information Collection Form — now has L1+L2 status fields (Q57-Q63)
   '260701439834862': {
-    1: 'form',
+    1: 'approval',
+    2: 'approval',
   },
-  // Sign Form — pure signature collection, no approval
+  // Sign Form — now has L1+L2 status fields (Q4-Q10)
   '260657596557070': {
-    1: 'form',
+    1: 'approval',
+    2: 'approval',
   },
-  // Blank/template Form — no approval fields
+  // Blank/template Form — no approval fields yet
   '260658067584064': {
     1: 'form',
   },
