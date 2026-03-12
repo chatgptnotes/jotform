@@ -6,10 +6,12 @@ import { fetchUserForms, fetchFormQuestions, detectFields, JFFormMeta, DetectedF
 
 // ─── Workflow step type cache (per formId) ────────────────────────────────────
 interface WorkflowStep { level: number; type: WorkflowActionType; }
-const workflowCache: Record<string, WorkflowStep[]> = {};
+const workflowCache: Record<string, { steps: WorkflowStep[]; at: number }> = {};
+const WORKFLOW_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — re-fetches on each page session
 
 async function fetchWorkflowSteps(formId: string): Promise<WorkflowStep[]> {
-  if (workflowCache[formId]) return workflowCache[formId];
+  const cached = workflowCache[formId];
+  if (cached && Date.now() - cached.at < WORKFLOW_CACHE_TTL) return cached.steps;
   try {
     const res = await fetch(`/api/form-workflow?formId=${formId}`);
     if (!res.ok) return [];
@@ -18,7 +20,7 @@ async function fetchWorkflowSteps(formId: string): Promise<WorkflowStep[]> {
       level: s.level,
       type: s.type,
     }));
-    workflowCache[formId] = steps;
+    workflowCache[formId] = { steps, at: Date.now() };
     return steps;
   } catch {
     return [];
