@@ -34,7 +34,7 @@ export default function UserDropdown() {
       <button onClick={() => setOpen(!open)} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-navy-light/30 transition-all">
         <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold font-semibold text-sm">
           {profile?.avatar_url ? (
-            <img src={profile.avatar_url} className="w-full h-full rounded-full object-cover" />
+            <img src={profile.avatar_url} alt={profile.full_name || 'User avatar'} className="w-full h-full rounded-full object-cover" />
           ) : (
             (profile?.full_name?.[0] || '?')
           )}

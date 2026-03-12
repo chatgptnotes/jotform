@@ -27,6 +27,19 @@ async function fetchWorkflowSteps(formId: string): Promise<WorkflowStep[]> {
   }
 }
 
+// ─── Shared utilities ────────────────────────────────────────────────────────
+/** Parse JotForm "YYYY-MM-DD HH:MM:SS" (UTC) or ISO 8601 string into a Date */
+function parseUTC(s: string): Date {
+  return new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
+}
+
+/** Aging thresholds (days) for overallStatus classification */
+const AGING_WARN_DAYS = 3;
+const AGING_CRITICAL_DAYS = 7;
+function agingStatus(days: number): 'on-track' | 'delayed' | 'critical' {
+  return days > AGING_CRITICAL_DAYS ? 'critical' : days > AGING_WARN_DAYS ? 'delayed' : 'on-track';
+}
+
 // ─── Workspace version — bump when switching teams to force full cache clear ──
 const WORKSPACE_VERSION = 'gdmo-bettroi-v2'; // bumped: fix qid injection in question cache
 const WS_VERSION_KEY = 'jotflow_workspace_version';
@@ -159,8 +172,6 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
   else if (overallStatus.includes('reject')) currentLevel = 'rejected';
 
   const createdAt = (raw.created_at as string) || '';
-  // JotForm timestamps are UTC; normalize "YYYY-MM-DD HH:MM:SS" → ISO 8601
-  const parseUTC = (s: string) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
   const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -204,7 +215,7 @@ function mapJotFormSubmission(raw: Record<string, unknown>, workflowSteps: Workf
     approvalHistory: history,
     daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
-    overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    overallStatus: agingStatus(daysAtCurrentLevel),
     jotformStatus,
     priority,
     answers: { description, amount, department, email, requester: requesterName },
@@ -236,7 +247,6 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
   }];
 
   const createdAt = (raw.created_at as string) || '';
-  const parseUTC = (s: string) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
   const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
   // For pending submissions, daysAtCurrentLevel = totalDays (single-level form).
@@ -273,7 +283,7 @@ function mapContentPublishingSubmission(raw: Record<string, unknown>, workflowSt
     approvalHistory: history,
     daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
-    overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    overallStatus: agingStatus(daysAtCurrentLevel),
     jotformStatus: cpJotformStatus,
     priority,
     answers: { description, contentType, department, email, requester: requesterName },
@@ -301,7 +311,6 @@ function mapTaskTestSubmission(raw: Record<string, unknown>, workflowSteps: Work
   }];
 
   const createdAt = (raw.created_at as string) || '';
-  const parseUTC = (s: string) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
   const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
   const daysAtCurrentLevel = totalDays;
@@ -329,7 +338,7 @@ function mapTaskTestSubmission(raw: Record<string, unknown>, workflowSteps: Work
     approvalHistory: history,
     daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
-    overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    overallStatus: agingStatus(daysAtCurrentLevel),
     jotformStatus: 'Pending',
     priority: 'medium',
     answers: { description: '', department, email, requester: requesterName },
@@ -403,7 +412,6 @@ function mapGenericSubmission(
   else if (overallFinal.includes('reject')) currentLevel = 'rejected';
 
   const createdAt = (raw.created_at as string) || '';
-  const parseUTC = (s: string) => new Date(s.includes('T') ? s : s.replace(' ', 'T') + 'Z');
   const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
   const totalDays = Math.floor((Date.now() - submissionDate.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -442,7 +450,7 @@ function mapGenericSubmission(
     approvalHistory: history,
     daysAtCurrentLevel,
     totalDaysSinceSubmission: totalDays,
-    overallStatus: daysAtCurrentLevel > 7 ? 'critical' : daysAtCurrentLevel > 3 ? 'delayed' : 'on-track',
+    overallStatus: agingStatus(daysAtCurrentLevel),
     jotformStatus: genericJotformStatus,
     priority,
     answers: { description, amount, department, email, requester: requesterName },
@@ -506,7 +514,7 @@ function mapSupabaseRow(row: Record<string, unknown>): Submission {
     approvalHistory: history,
     daysAtCurrentLevel: totalDays,
     totalDaysSinceSubmission: totalDays,
-    overallStatus: totalDays > 7 ? 'critical' : totalDays > 3 ? 'delayed' : 'on-track',
+    overallStatus: agingStatus(totalDays),
     jotformStatus: String(row.status || (currentLevel === 'completed' ? 'Completed' : currentLevel === 'rejected' ? 'Rejected' : 'Pending')),
     priority: 'medium',
     answers: { description: String(row.title || ''), amount: String((mapped.amount as string) || ''), department: String(row.department || ''), email: String((mapped.email as string) || ''), requester: String(row.submitted_by || '') },
@@ -566,14 +574,33 @@ export function useSubmissions() {
       // Don't setActiveForms yet — wait until submissions are ready to avoid mid-load flicker
 
       // Fetch submissions + questions for all forms in parallel
+      let partialDataWarning = false;
       const formResults = await Promise.all(
         forms.map(async (form) => {
-          const [subsRes, questions] = await Promise.all([
-            fetch(`/api/jotform?path=form/${form.id}/submissions&limit=1000&orderby=created_at&direction=DESC`),
-            fetchFormQuestions(form.id),
-          ]);
-          const subsData = subsRes.ok ? await subsRes.json() : null;
-          const rows: Record<string, unknown>[] = subsData?.content || [];
+          const questions = await fetchFormQuestions(form.id);
+
+          // Fetch ALL submissions with pagination (JotForm caps at 1000 per request)
+          const pageLimit = 1000;
+          const maxPages = 10; // Safety cap to prevent runaway loops
+          let offset = 0;
+          let pageCount = 0;
+          const rows: Record<string, unknown>[] = [];
+          while (pageCount < maxPages) {
+            const res = await fetch(
+              `/api/jotform?path=form/${form.id}/submissions&limit=${pageLimit}&offset=${offset}&orderby=created_at&direction=DESC`
+            );
+            if (!res.ok) {
+              console.warn(`[JotFlow] Failed to fetch submissions for form ${form.id} (offset=${offset}, status=${res.status})`);
+              if (rows.length > 0) partialDataWarning = true;
+              break;
+            }
+            const data = await res.json();
+            const page: Record<string, unknown>[] = data?.content || [];
+            rows.push(...page);
+            if (page.length < pageLimit) break;
+            offset += pageLimit;
+            pageCount++;
+          }
           const detectedFields = detectFields(questions);
           const steps = await fetchWorkflowSteps(form.id);
           return { form, rows, detectedFields, steps };
@@ -594,6 +621,9 @@ export function useSubmissions() {
         setActiveForms(forms);
         setAllSubmissions(mapped);
         setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
+        if (partialDataWarning) {
+          setError('Some submissions could not be loaded — showing partial data');
+        }
       } else if (forms.length === 0 && !hasCachedData) {
         setError('No JotForm workflows found. Please ensure your JotForm account has enabled forms.');
       } else if (totalRows === 0 && !hasCachedData) {

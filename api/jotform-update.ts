@@ -4,11 +4,13 @@ const JOTFORM_BASE = 'https://eforms.mediaoffice.ae/API';
 const API_KEY = process.env.JOTFORM_API_KEY;
 const TEAM_ID = process.env.JOTFORM_TEAM_ID || '260541093809054';
 
-// Levels that require a digital signature for approval
-const SIGNATURE_REQUIRED_LEVELS = [3, 4];
+// All approval levels require a digital signature
+const SIGNATURE_REQUIRED_LEVELS = [1, 2, 3, 4];
+
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*'; // Set to your domain in production
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -50,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const data = await response.json();
-    return res.status(200).json(data);
+    return res.status(response.ok ? 200 : response.status).json(data);
   } catch (error) {
     return res.status(500).json({ error: 'Proxy error', message: String(error) });
   }

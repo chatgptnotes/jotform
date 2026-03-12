@@ -4,9 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://eekudqlzzklhyhwkqvme.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const BUCKET = 'signatures';
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
+const MAX_SIGNATURE_BYTES = 500_000; // ~500KB max for a signature image
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
@@ -25,11 +27,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'submissionId, level, and signatureData are required' });
   }
 
+  // Validate signature payload size to prevent abuse
+  const base64 = signatureData.replace(/^data:image\/\w+;base64,/, '');
+  const estimatedBytes = Math.ceil(base64.length * 3 / 4);
+  if (estimatedBytes > MAX_SIGNATURE_BYTES) {
+    return res.status(413).json({ error: `Signature too large (${Math.round(estimatedBytes / 1024)}KB). Max ${Math.round(MAX_SIGNATURE_BYTES / 1024)}KB.` });
+  }
+
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Strip the data URL prefix to get raw base64
-    const base64 = signatureData.replace(/^data:image\/\w+;base64,/, '');
+    // Convert base64 to buffer
     const buffer = Buffer.from(base64, 'base64');
     const storagePath = `${submissionId}/level${level}_${Date.now()}.png`;
 

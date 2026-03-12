@@ -203,8 +203,8 @@ export default function DirectorDashboard({ data }: Props) {
       if (typeof s.currentApprovalLevel !== 'number') return true;
       // Pending submissions: show if at user's approval level
       const atDirectorLevel = currentUser.approvalLevels.includes(s.currentApprovalLevel as number);
-      const pendingEntry = s.approvalHistory.find(a => a.status === 'pending');
-      const nameMatch = pendingEntry && currentUser.nameMatches.length > 0
+      const pendingEntry = s.approvalHistory?.find(a => a.status === 'pending');
+      const nameMatch = pendingEntry?.approverName && currentUser.nameMatches.length > 0
         ? currentUser.nameMatches.some(m => pendingEntry.approverName.toLowerCase().includes(m))
         : false;
       return atDirectorLevel || nameMatch;

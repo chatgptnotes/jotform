@@ -21,6 +21,7 @@ import KanbanBoard from './pages/KanbanBoard';
 import DirectorDashboard from './pages/DirectorDashboard';
 import SubmitRequest from './pages/SubmitRequest';
 import { useSubmissions } from './hooks/useSubmissions';
+import ErrorBoundary from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
 function ProtectedApp() {
@@ -74,14 +75,16 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/app" replace />} />
-      <Route path="/login" element={user ? <Navigate to="/app" replace /> : <Login />} />
-      <Route path="/signup" element={user ? <Navigate to="/app" replace /> : <Signup />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
-      <Route path="/app/*" element={<RequireAuth><ProtectedApp /></RequireAuth>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/" element={<Navigate to="/app" replace />} />
+        <Route path="/login" element={user ? <Navigate to="/app" replace /> : <Login />} />
+        <Route path="/signup" element={user ? <Navigate to="/app" replace /> : <Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+        <Route path="/app/*" element={<RequireAuth><ProtectedApp /></RequireAuth>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ErrorBoundary>
   );
 }

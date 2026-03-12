@@ -23,9 +23,19 @@ function extractText(answer: unknown): string {
   return '';
 }
 
+const WEBHOOK_SECRET = process.env.JOTFORM_WEBHOOK_SECRET || '';
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  // Webhooks are server-to-server — no CORS needed, restrict to POST
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Validate webhook secret if configured (query param ?secret=...)
+  if (WEBHOOK_SECRET) {
+    const secret = req.query.secret as string;
+    if (secret !== WEBHOOK_SECRET) {
+      return res.status(403).json({ error: 'Invalid webhook secret' });
+    }
+  }
 
   if (!API_KEY) {
     return res.status(500).json({ error: 'JOTFORM_API_KEY environment variable is not set' });
