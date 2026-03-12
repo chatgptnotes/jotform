@@ -106,9 +106,24 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   const signatureRequired = level !== null && SIGNATURE_REQUIRED_LEVELS.includes(level);
   // Check if this form supports direct approval (has known field map)
   const supportsDirectApproval = submission !== null && level !== null && getFieldMap(submission, level) !== null;
+
+  // ── Who is the designated approver for the current level? ────────────────
+  // pendingEntry.approverName is the evaluator email from the form answers.
+  const pendingEntry = submission
+    ? (typeof submission.currentApprovalLevel === 'number'
+        ? submission.approvalHistory.find(a => a.level === submission.currentApprovalLevel && a.status === 'pending')
+        : submission.approvalHistory.find(a => a.status === 'pending'))
+    : null;
+  const designatedApproverEmail = pendingEntry?.approverName ?? '';
+  // isDesignatedApprover: true if logged-in user's email matches the evaluator email
+  const isDesignatedApprover = !!user?.email && (
+    designatedApproverEmail.toLowerCase() === user.email.toLowerCase() ||
+    currentUser.isAdmin === true  // admins can always override (e.g. bk@bettroi.com)
+  );
+
   // Comment is optional — signature is required only for L3/L4 approvals
-  const approveEnabled = !signatureRequired || signature !== '';
-  const rejectEnabled = true;
+  const approveEnabled = isDesignatedApprover && (!signatureRequired || signature !== '');
+  const rejectEnabled = isDesignatedApprover;
 
   const handleApproval = async (action: 'approve' | 'reject') => {
     if (!submission || typeof submission.currentApprovalLevel !== 'number') return;
@@ -507,12 +522,23 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     </div>
                   </div>
                 ) : supportsDirectApproval ? (
-                  <div className="flex gap-3 pt-1">
+                  <div className="space-y-2 pt-1">
+                    {/* Show who needs to act if it's not the current user */}
+                    {!isDesignatedApprover && designatedApproverEmail && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <p className="text-xs text-amber-300">
+                          Awaiting approval from <span className="font-semibold">{designatedApproverEmail}</span>
+                        </p>
+                      </div>
+                    )}
+                  <div className="flex gap-3">
                     <button
                       type="button"
                       onClick={() => setConfirmPending('approve')}
                       disabled={!approveEnabled || isSubmitting}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
+                      title={!isDesignatedApprover ? `Only ${designatedApproverEmail} can approve at this level` : ''}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
                     >
                       <CheckCircle2 className="w-4 h-4" /> Approve
                     </button>
@@ -520,10 +546,12 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                       type="button"
                       onClick={() => setConfirmPending('reject')}
                       disabled={!rejectEnabled || isSubmitting}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
+                      title={!isDesignatedApprover ? `Only ${designatedApproverEmail} can reject at this level` : ''}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all"
                     >
                       <XCircle className="w-4 h-4" /> Reject
                     </button>
+                  </div>
                   </div>
                 ) : (
                   <div className="pt-1 space-y-3">

@@ -9,16 +9,16 @@ export interface UserConfig {
 export const USER_CONFIGS: Record<string, UserConfig> = {
   'huzaifa.dawasaz@mediaoffice.ae': {
     name: 'Huzaifa Dawasaz',
-    role: 'Director',
-    approvalLevels: [3],
-    nameMatches: ['huzaifa', 'dawasaz', 'director'],
+    role: 'Level 1 Approver',
+    approvalLevels: [1],
+    nameMatches: ['huzaifa', 'dawasaz'],
   },
   'bk@bettroi.com': {
-    name: 'BK',
-    role: 'Admin',
-    approvalLevels: [1, 2, 3, 4],
-    nameMatches: [],
-    isAdmin: true,
+    name: 'Murali BK',
+    role: 'Level 2 Approver',
+    approvalLevels: [2],
+    nameMatches: ['murali', 'bk'],
+    isAdmin: true,  // bk is super-admin — can approve any level
   },
   'admin@bettroi.com': {
     name: 'Bettroi Admin',
