@@ -498,8 +498,17 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                 {/* ── FORM step ── */}
                 {submission.actionType === 'form' && (
                   <div className="space-y-3">
+                    {/* Show who needs to act */}
+                    {!isDesignatedApprover && designatedApproverEmail && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <p className="text-xs text-amber-300">
+                          Assigned to <span className="font-semibold">{designatedApproverEmail}</span>
+                        </p>
+                      </div>
+                    )}
                     <p className="text-sm text-gray-400">
-                      This step requires filling out or completing a form in JotForm. Click below to open it.
+                      Step 1: Complete the form in JotForm. Step 2: Mark as done below.
                     </p>
                     <button
                       onClick={openFormUrl}
@@ -508,6 +517,28 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                       <FileEdit className="w-4 h-4" />
                       Complete Form in JotForm
                       <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                    </button>
+                    {/* Comment field */}
+                    <textarea
+                      value={comment}
+                      onChange={e => setComment(e.target.value)}
+                      placeholder="Completion note (optional)..."
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-lg bg-navy-light/30 border border-navy-light/40 text-white text-sm placeholder-gray-500 resize-none focus:outline-none focus:border-gold/40"
+                    />
+                    {pushResult && (
+                      <div className={`p-3 rounded-lg text-sm ${pushResult.success ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' : 'bg-red-500/10 text-red-300 border border-red-500/20'}`}>
+                        {pushResult.message}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setConfirmPending('approve')}
+                      disabled={!isDesignatedApprover || isSubmitting}
+                      title={!isDesignatedApprover ? `Only ${designatedApproverEmail} can mark this done` : ''}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-400 rounded-xl font-semibold text-sm border border-emerald-500/20 transition-all"
+                    >
+                      {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                      {approving ? 'Marking Done...' : 'Mark Form as Done'}
                     </button>
                   </div>
                 )}

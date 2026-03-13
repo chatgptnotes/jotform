@@ -536,25 +536,41 @@ export default function DirectorDashboard({ data }: Props) {
                             </a>
                           </div>
                         ) : sub.actionType === 'task' ? (
-                          /* ── TASK step: only show View Task button ── */
-                          <button
-                            onClick={() => openTaskUrl(sub)}
-                            disabled={taskUrlLoading === sub.id}
-                            className="px-2.5 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 disabled:opacity-50 text-xs font-medium flex items-center gap-1 transition-colors"
-                          >
-                            {taskUrlLoading === sub.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardList className="w-3.5 h-3.5" />}
-                            View Task
-                          </button>
+                          /* ── TASK step: View Task + Mark as Done ── */
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => openTaskUrl(sub)}
+                              disabled={taskUrlLoading === sub.id}
+                              className="px-2.5 py-1.5 rounded-lg bg-gold/20 text-gold hover:bg-gold/30 disabled:opacity-50 text-xs font-medium flex items-center gap-1 transition-colors"
+                            >
+                              {taskUrlLoading === sub.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ClipboardList className="w-3.5 h-3.5" />}
+                              View Task
+                            </button>
+                            <button
+                              onClick={() => openModal(sub)}
+                              className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-xs font-medium flex items-center gap-1 transition-colors"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Mark as Done
+                            </button>
+                          </div>
                         ) : sub.actionType === 'form' ? (
-                          /* ── FORM step: only show View Form button ── */
-                          <button
-                            onClick={() => openFormUrl(sub)}
-                            disabled={formUrlLoading === sub.id}
-                            className="px-2.5 py-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 disabled:opacity-50 text-xs font-medium flex items-center gap-1 transition-colors"
-                          >
-                            {formUrlLoading === sub.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileEdit className="w-3.5 h-3.5" />}
-                            Complete Form
-                          </button>
+                          /* ── FORM step: Complete Form + Mark as Done ── */
+                          <div className="flex flex-col gap-1">
+                            <button
+                              onClick={() => openFormUrl(sub)}
+                              disabled={formUrlLoading === sub.id}
+                              className="px-2.5 py-1.5 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 disabled:opacity-50 text-xs font-medium flex items-center gap-1 transition-colors"
+                            >
+                              {formUrlLoading === sub.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileEdit className="w-3.5 h-3.5" />}
+                              Complete Form
+                            </button>
+                            <button
+                              onClick={() => openModal(sub)}
+                              className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 text-xs font-medium flex items-center gap-1 transition-colors"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Mark as Done
+                            </button>
+                          </div>
                         ) : (
                           /* ── APPROVAL step: Review + Reject + Comment + secondary links ── */
                           <>
