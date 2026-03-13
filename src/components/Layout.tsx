@@ -6,13 +6,14 @@ import {
   Users, FileText, CreditCard, HelpCircle, Building2, BarChart3, Kanban,
   FolderOpen, Folder, ChevronRight, ChevronDown, LayoutGrid, Package,
   DollarSign, Monitor, Scale, Briefcase, Megaphone, ShieldCheck, PlusCircle,
-  ClipboardList, Layers, Sun, Moon,
+  ClipboardList, Layers, Sun, Moon, Tag,
 } from 'lucide-react';
 import { RefreshConfig, SidebarCategory } from '../types';
 import { JFFormMeta } from '../services/formDiscovery';
 import { useAuth } from '../contexts/AuthContext';
 import { useApp } from '../contexts/AppContext';
 import { SIDEBAR_CATEGORIES } from '../services/mockData';
+import { SHOW_VERSION_PAGE, CURRENT_VERSION } from '../config/versions';
 import NotificationBell from './NotificationBell';
 import UserDropdown from './UserDropdown';
 
@@ -93,6 +94,7 @@ export default function Layout({ children, refreshConfig, setRefreshConfig, onRe
     { path: '/app/org-settings', icon: Building2, label: 'Organization', roles: ['super_admin'] },
     { path: '/app/settings', icon: Settings, label: 'Settings', roles: ['super_admin', 'admin', 'approver', 'viewer'] },
     { path: '/app/help', icon: HelpCircle, label: 'Help & Support', roles: ['super_admin', 'admin', 'approver', 'viewer'] },
+    ...(SHOW_VERSION_PAGE ? [{ path: '/app/versions', icon: Tag, label: `Versions (${CURRENT_VERSION})`, roles: ['super_admin', 'admin', 'approver', 'viewer'] }] : []),
   ].filter(item => item.roles.includes(orgRole));
 
   const currentLabel = location.pathname === '/app/director'

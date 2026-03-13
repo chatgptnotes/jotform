@@ -20,6 +20,8 @@ import AdvancedAnalytics from './pages/AdvancedAnalytics';
 import KanbanBoard from './pages/KanbanBoard';
 import DirectorDashboard from './pages/DirectorDashboard';
 import SubmitRequest from './pages/SubmitRequest';
+import VersionHistory from './pages/VersionHistory';
+import { SHOW_VERSION_PAGE } from './config/versions';
 import { useSubmissions } from './hooks/useSubmissions';
 import ErrorBoundary from './components/ErrorBoundary';
 import { Loader2 } from 'lucide-react';
@@ -45,6 +47,7 @@ function ProtectedApp() {
         <Route path="/kanban" element={<KanbanBoard data={data} />} />
         <Route path="/director" element={<DirectorDashboard data={data} />} />
         <Route path="/submit-request" element={<SubmitRequest />} />
+        {SHOW_VERSION_PAGE && <Route path="/versions" element={<VersionHistory />} />}
       </Routes>
     </Layout>
   );
