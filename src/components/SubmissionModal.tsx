@@ -155,6 +155,20 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     currentUser.isAdmin === true  // admins can always override (e.g. bk@bettroi.com)
   );
 
+  // Debug: log why button might be disabled (remove after fixing)
+  if (submission) {
+    console.log('[SubmissionModal Debug]', {
+      userEmail: user?.email,
+      currentUserIsAdmin: currentUser.isAdmin,
+      designatedApproverEmail,
+      isDesignatedApprover,
+      actionType: submission.actionType,
+      currentApprovalLevel: submission.currentApprovalLevel,
+      pendingEntry: pendingEntry ? { level: pendingEntry.level, status: pendingEntry.status, approverName: pendingEntry.approverName } : null,
+      approvalHistory: submission.approvalHistory,
+    });
+  }
+
   // Comment is optional — signature is required only for L3/L4 approvals
   const approveEnabled = isDesignatedApprover && (!signatureRequired || signature !== '');
   const rejectEnabled = isDesignatedApprover;
