@@ -207,10 +207,18 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     if (fields.approverField && fields.approverField !== fields.statusField) {
       updates[fields.approverField] = approverNote;
     }
+    // Determine if this is the last approval level for this form
+    const maxLevel = submission.levelFieldMap
+      ? Math.max(...submission.levelFieldMap.map(m => m.level))
+      : submission.approvalHistory.length > 0
+        ? Math.max(...submission.approvalHistory.map(h => h.level))
+        : 4;
+    const isLastLevel = lvl >= maxLevel;
+
     // Only update the overall status field if this form has one
     if (fields.overallStatusField) {
       if (action === 'reject') updates[fields.overallStatusField] = 'Rejected';
-      else if (lvl === 4) updates[fields.overallStatusField] = 'Completed';
+      else if (isLastLevel) updates[fields.overallStatusField] = 'Completed';
       else updates[fields.overallStatusField] = 'In Progress';
     }
 
@@ -231,13 +239,13 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
         newLevel = 'rejected';
         newJotformStatus = 'Rejected';
       } else {
-        newLevel = lvl === 4 ? 'completed' : (lvl + 1) as import('../types').ApprovalLevel;
-        newJotformStatus = lvl === 4 ? 'Completed' : 'In Progress';
+        newLevel = isLastLevel ? 'completed' : (lvl + 1) as import('../types').ApprovalLevel;
+        newJotformStatus = isLastLevel ? 'Completed' : 'In Progress';
       }
 
       // Immediately patch Supabase cache so next reload shows correct level
-      const sbStatus = action === 'reject' ? 'rejected' : (lvl === 4 ? 'completed' : 'in_progress');
-      const sbLevel = action === 'reject' ? lvl : (lvl === 4 ? lvl : lvl + 1);
+      const sbStatus = action === 'reject' ? 'rejected' : (isLastLevel ? 'completed' : 'in_progress');
+      const sbLevel = action === 'reject' ? lvl : (isLastLevel ? lvl : lvl + 1);
       supabase
         .from('jf_submissions')
         .update({

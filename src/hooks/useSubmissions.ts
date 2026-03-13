@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { fetchUserForms, fetchFormQuestions, detectFields, JFFormMeta, DetectedFields } from '../services/formDiscovery';
 
 // ─── Workflow step type cache (per formId) ────────────────────────────────────
-interface WorkflowStep { level: number; type: WorkflowActionType; }
+interface WorkflowStep { level: number; type: WorkflowActionType; assigneeEmail?: string; }
 const workflowCache: Record<string, { steps: WorkflowStep[]; at: number }> = {};
 const WORKFLOW_CACHE_TTL = 5 * 60 * 1000; // 5 minutes — re-fetches on each page session
 
@@ -16,9 +16,10 @@ async function fetchWorkflowSteps(formId: string): Promise<WorkflowStep[]> {
     const res = await fetch(`/api/form-workflow?formId=${formId}`);
     if (!res.ok) return [];
     const data = await res.json();
-    const steps: WorkflowStep[] = (data.steps || []).map((s: WorkflowStep) => ({
+    const steps: WorkflowStep[] = (data.steps || []).map((s: WorkflowStep & { assigneeEmail?: string }) => ({
       level: s.level,
       type: s.type,
+      assigneeEmail: s.assigneeEmail || undefined,
     }));
     workflowCache[formId] = { steps, at: Date.now() };
     return steps;
@@ -374,12 +375,17 @@ function mapGenericSubmission(
     if (perLevelFieldId) return get(perLevelFieldId);
     return evaluatorEmail; // fallback to single evaluator email
   };
+  // Assignee email from workflow step configuration (set in form-workflow API)
+  const getStepAssignee = (level: number): string => {
+    const step = workflowSteps.find(s => s.level === level);
+    return step?.assigneeEmail || '';
+  };
 
   if (fields.levelFields.length > 0) {
     for (const lf of fields.levelFields) {
       const statusVal = get(lf.statusFieldId).toLowerCase();
-      // Use per-level evaluator email, then approver field, then fallback
-      const approverName = get(lf.approverFieldId) || getEvaluatorEmail(lf.level) || `Level ${lf.level} Approver`;
+      // Use per-level evaluator email, then approver field, then workflow step assignee, then fallback
+      const approverName = get(lf.approverFieldId) || getEvaluatorEmail(lf.level) || getStepAssignee(lf.level) || `Level ${lf.level} Approver`;
       const date = get(lf.dateFieldId) || undefined;
       if (statusVal === 'approved') {
         history.push({ level: lf.level as ApprovalLevel, approverName, status: 'approved', date });
@@ -403,7 +409,7 @@ function mapGenericSubmission(
     else currentLevel = 1 as ApprovalLevel;
 
     const histStatus = typeof currentLevel === 'number' ? 'pending' : currentLevel === 'completed' ? 'approved' : 'rejected';
-    history.push({ level: 1 as ApprovalLevel, approverName: evaluatorEmail || 'Approver', status: histStatus });
+    history.push({ level: 1 as ApprovalLevel, approverName: evaluatorEmail || getStepAssignee(1) || 'Approver', status: histStatus });
   }
 
   // Overall status field can override level computation
@@ -611,13 +617,16 @@ export function useSubmissions() {
 
       if (totalRows > 0) {
         const mapped: Submission[] = [];
+        const newStepsByForm: Record<string, WorkflowStep[]> = {};
         for (const { form, rows, detectedFields, steps } of formResults) {
+          newStepsByForm[form.id] = steps;
           for (const raw of rows) {
             // All forms from GDMO-Bettroi team use the generic mapper (auto field detection)
             mapped.push(mapGenericSubmission(raw, form.id, form.title, detectedFields, steps));
           }
         }
-        // Batch both state updates together — prevents double render / flicker
+        // Batch state updates together — prevents double render / flicker
+        setStepsByForm(newStepsByForm);
         setActiveForms(forms);
         setAllSubmissions(mapped);
         setRefreshConfig(prev => ({ ...prev, lastUpdated: new Date().toISOString() }));
@@ -697,6 +706,11 @@ export function useSubmissions() {
   const bottleneckData = useMemo(() => getBottleneckData(allSubmissions), [allSubmissions]);
   const heatmapData = useMemo(() => getHeatmapData(allSubmissions), [allSubmissions]);
 
+  // ─── Workflow step cache (for optimistic updates) ─────────────────────────
+  // Populated during loadData — maps formId → steps so optimistic updates
+  // can resolve the next-level assignee email.
+  const [stepsByForm, setStepsByForm] = useState<Record<string, WorkflowStep[]>>({});
+
   // ─── Optimistic update: immediately patch a submission in state ─────────────
   // Call this right after a successful write to JotForm so the UI reflects
   // the new status instantly, without waiting for the next full re-fetch.
@@ -732,7 +746,11 @@ export function useSubmissions() {
         if (!isRejected && patch.newLevel !== 'completed' && typeof patch.newLevel === 'number') {
           const nextLvl = patch.newLevel as ApprovalLevel;
           const nextExists = updatedHistory.findIndex(h => h.level === nextLvl);
-          if (nextExists < 0) updatedHistory.push({ level: nextLvl, approverName: `Level ${nextLvl} Approver`, status: 'pending' });
+          // Resolve next-level approver from workflow step config
+          const formSteps = stepsByForm[sub.formId] || [];
+          const nextStep = formSteps.find(s => s.level === nextLvl);
+          const nextApprover = nextStep?.assigneeEmail || `Level ${nextLvl} Approver`;
+          if (nextExists < 0) updatedHistory.push({ level: nextLvl, approverName: nextApprover, status: 'pending' });
         }
       }
 
@@ -744,7 +762,7 @@ export function useSubmissions() {
         daysAtCurrentLevel: 0, // reset — just actioned
       };
     }));
-  }, []);
+  }, [stepsByForm]);
 
   return {
     allSubmissions, filteredSubmissions, paginatedSubmissions,

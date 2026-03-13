@@ -10,6 +10,7 @@ export interface WorkflowStep {
   type: StepType;
   label: string;
   questionId: string;
+  assigneeEmail?: string;
 }
 
 /**
@@ -20,6 +21,30 @@ export interface WorkflowStep {
  * Use this to configure step types for each form without
  * needing to rename questions in JotForm.
  */
+/**
+ * Per-level assignee email configuration.
+ * These emails are shown in the "Pending With" column and used
+ * for designated-approver checks in the approval modal.
+ *
+ * Key: formId, Value: map of level → assignee email
+ */
+const STEP_ASSIGNEE_CONFIG: Record<string, Record<number, string>> = {
+  '260561614487865': { // Form demo — Approve & Sign → Form → review Task
+    1: 'huzaifa.dawasaz@mediaoffice.ae',
+    2: 'bk@bettroi.com',
+    3: 'bk@bettroi.com',
+  },
+  '260703226946458': { // Test Approval Workflow — Sahil → Huzaifa (L1) → Murali BK (L2)
+    1: 'huzaifa.dawasaz@mediaoffice.ae',
+    2: 'bk@bettroi.com',
+  },
+  '260702886904463': { // Title Me Form — BK (L1) → BK task (L2) → Huzaifa (L3)
+    1: 'bk@bettroi.com',
+    2: 'bk@bettroi.com',
+    3: 'huzaifa.dawasaz@mediaoffice.ae',
+  },
+};
+
 const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
   // ── GDMO-Bettroi Team Forms (team ID: 260541093809054) ─────────────────────
   '260633608278058': { // Proj Completion
@@ -30,6 +55,9 @@ const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
   },
   '260561554311046': { // Form (generic)
     1: 'approval',
+  },
+  '260561614487865': { // Form demo — Approve & Sign → Form → review Task
+    1: 'approval', 2: 'form', 3: 'task',
   },
   '260703226946458': { // Test Approval Workflow — Sahil → Huzaifa (L1) → Murali BK (L2)
     1: 'approval', 2: 'approval',
@@ -126,11 +154,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Check manual config override first — skips JotForm API call entirely
   const configuredSteps = STEP_TYPE_CONFIG[formId];
   if (configuredSteps) {
+    const assignees = STEP_ASSIGNEE_CONFIG[formId] || {};
     const steps: WorkflowStep[] = Object.entries(configuredSteps).map(([level, type]) => ({
       level: parseInt(level),
       type,
       label: `Level ${level}`,
       questionId: '',
+      assigneeEmail: assignees[parseInt(level)] || undefined,
     }));
     cache[formId] = { steps, at: Date.now() };
     return res.status(200).json({ formId, steps, source: 'config' });
