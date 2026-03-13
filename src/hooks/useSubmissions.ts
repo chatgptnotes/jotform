@@ -412,13 +412,10 @@ function mapGenericSubmission(
     history.push({ level: 1 as ApprovalLevel, approverName: evaluatorEmail || getStepAssignee(1) || 'Approver', status: histStatus });
   }
 
-  // Overall status override only applies to single-level forms (no per-level fields).
-  // Multi-level forms derive currentLevel from the individual level status fields above.
-  if (fields.levelFields.length === 0) {
-    const overallFinal = get(fields.overallStatusFieldId).toLowerCase();
-    if (overallFinal.includes('complet')) currentLevel = 'completed';
-    else if (overallFinal.includes('reject')) currentLevel = 'rejected';
-  }
+  // Overall status field can override level computation
+  const overallFinal = get(fields.overallStatusFieldId).toLowerCase();
+  if (overallFinal.includes('complet')) currentLevel = 'completed';
+  else if (overallFinal.includes('reject')) currentLevel = 'rejected';
 
   const createdAt = (raw.created_at as string) || '';
   const submissionDate = createdAt ? parseUTC(createdAt) : new Date();
