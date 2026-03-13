@@ -78,8 +78,34 @@ function getFieldMap(submission: Submission, level: number): FieldMap | null {
     const lf = submission.levelFieldMap.find(m => m.level === level);
     if (lf) return { statusField: lf.statusFieldId, approverField: lf.approverFieldId, overallStatusField: lf.overallStatusFieldId };
   }
-  // Unknown form — redirect to JotForm
+  // No field map found — caller should call ensureFields() to create them
   return null;
+}
+
+/**
+ * Call /api/ensure-fields to create hidden approval status fields on the JotForm form.
+ * Returns a levelFieldMap that can be used for approval actions.
+ */
+async function ensureFields(formId: string): Promise<{
+  levelFieldMap: { level: number; statusFieldId: string; approverFieldId: string | null; overallStatusFieldId: string | null }[];
+} | null> {
+  try {
+    const res = await fetch(`/api/ensure-fields?formId=${formId}`, { method: 'POST' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.fields || data.fields.length === 0) return null;
+    const overallId = data.overallStatusFieldId || null;
+    return {
+      levelFieldMap: data.fields.map((f: { level: number; statusFieldId: string; approverFieldId: string }) => ({
+        level: f.level,
+        statusFieldId: f.statusFieldId,
+        approverFieldId: f.approverFieldId || null,
+        overallStatusFieldId: overallId,
+      })),
+    };
+  } catch {
+    return null;
+  }
 }
 
 // Director-level approvals require signature
@@ -101,12 +127,19 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   // Two-click confirmation: 'approve' | 'reject' | null
   const [confirmPending, setConfirmPending] = useState<'approve' | 'reject' | null>(null);
 
-  const isSubmitting = approving || rejecting || uploadingSignature;
+  const [ensuringFields, setEnsuringFields] = useState(false);
+  // Dynamically resolved field map (from ensureFields API) — used when form has no built-in fields
+  const [dynamicFieldMap, setDynamicFieldMap] = useState<{ level: number; statusFieldId: string; approverFieldId: string | null; overallStatusFieldId: string | null }[] | null>(null);
+
+  const isSubmitting = approving || rejecting || uploadingSignature || ensuringFields;
 
   const level = typeof submission?.currentApprovalLevel === 'number' ? submission.currentApprovalLevel : null;
   const signatureRequired = level !== null && SIGNATURE_REQUIRED_LEVELS.includes(level);
-  // Check if this form supports direct approval (has known field map)
-  const supportsDirectApproval = submission !== null && level !== null && getFieldMap(submission, level) !== null;
+
+  // Check if this form supports direct approval (has known field map or dynamic one)
+  const hasStaticFieldMap = submission !== null && level !== null && getFieldMap(submission, level) !== null;
+  // For forms without static field maps, auto-ensure fields when modal opens
+  const supportsDirectApproval = hasStaticFieldMap || dynamicFieldMap !== null;
 
   // ── Who is the designated approver for the current level? ────────────────
   // pendingEntry.approverName is the evaluator email from the form answers.
@@ -134,9 +167,14 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     setPushResult(null);
 
     const lvl = submission.currentApprovalLevel;
-    const fields = getFieldMap(submission, lvl);
+    // Try static field map first, then dynamic (from ensure-fields API)
+    let fields = getFieldMap(submission, lvl);
+    if (!fields && dynamicFieldMap) {
+      const df = dynamicFieldMap.find(m => m.level === lvl);
+      if (df) fields = { statusField: df.statusFieldId, approverField: df.approverFieldId, overallStatusField: df.overallStatusFieldId };
+    }
     if (!fields) {
-      setPushResult({ success: false, message: `This form requires action in JotForm. Click "Open in JotForm" above to approve or reject directly.` });
+      setPushResult({ success: false, message: `Could not resolve approval fields. Please try refreshing the page.` });
       setApproving(false);
       setRejecting(false);
       return;
@@ -288,7 +326,27 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     setApproving(false);
     setRejecting(false);
     setConfirmPending(null);
+    setDynamicFieldMap(null);
   }, [submission?.id]);
+
+  // Auto-ensure fields for forms that don't have status fields
+  useEffect(() => {
+    if (!submission || !level) return;
+    if (hasStaticFieldMap) return; // already has fields
+    if (dynamicFieldMap) return; // already resolved
+    if (FORM_ONLY_IDS.has(submission.formId)) return; // pure submission form
+
+    let cancelled = false;
+    setEnsuringFields(true);
+    ensureFields(submission.formId).then(result => {
+      if (cancelled) return;
+      setEnsuringFields(false);
+      if (result) {
+        setDynamicFieldMap(result.levelFieldMap);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [submission?.id, submission?.formId, level, hasStaticFieldMap, dynamicFieldMap]);
 
   // Keyboard: Esc to close — blocked while submission is in progress
   useEffect(() => {
@@ -585,10 +643,17 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     </button>
                   </div>
                   </div>
+                ) : ensuringFields ? (
+                  <div className="pt-1 space-y-3">
+                    <div className="p-3 rounded-lg text-sm bg-blue-500/10 text-blue-300 border border-blue-500/20 flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Setting up approval fields for this form...
+                    </div>
+                  </div>
                 ) : (
                   <div className="pt-1 space-y-3">
                     <div className="p-3 rounded-lg text-sm bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                      This form must be approved directly in JotForm Enterprise.
+                      Could not set up approval fields. You can approve directly in JotForm.
                     </div>
                     <a
                       href={submission.taskUrl || submission.formUrl}
