@@ -43,9 +43,9 @@ const STEP_ASSIGNEE_CONFIG: Record<string, Record<number, string>> = {
     1: 'huzaifa.dawasaz@mediaoffice.ae',
   },
   '260561614487865': { // Form demo — Approve & Sign → Form → review Task
-    1: 'huzaifa.dawasaz@mediaoffice.ae',
+    1: 'bk@bettroi.com',
     2: 'bk@bettroi.com',
-    3: 'bk@bettroi.com',
+    3: 'huzaifa.dawasaz@mediaoffice.ae',
   },
   '260703226946458': { // Test Approval Workflow — Sahil → Huzaifa (L1) → Murali BK (L2)
     1: 'huzaifa.dawasaz@mediaoffice.ae',
