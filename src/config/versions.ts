@@ -16,9 +16,23 @@ export interface VersionEntry {
   changes: string[];
 }
 
-export const CURRENT_VERSION = 'v1.3.0';
+export const CURRENT_VERSION = 'v1.4.0';
 
 export const VERSION_HISTORY: VersionEntry[] = [
+  {
+    version: 'v1.4.0',
+    date: '2026-03-13',
+    commit: 'c8e8799',
+    type: 'minor',
+    description: 'Version History page with git tag tracking',
+    changes: [
+      'Added Version History page at /app/versions',
+      'Sidebar link under Tools showing current version',
+      'Git tags v1.0.0 through v1.4.0 created and pushed',
+      'SHOW_VERSION_PAGE flag to hide page before go-live',
+      'Copy-to-clipboard for git checkout commands',
+    ],
+  },
   {
     version: 'v1.3.0',
     date: '2026-03-13',
