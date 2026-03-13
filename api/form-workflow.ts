@@ -39,8 +39,10 @@ const STEP_ASSIGNEE_CONFIG: Record<string, Record<number, string>> = {
     1: 'huzaifa.dawasaz@mediaoffice.ae',
     2: 'bk@bettroi.com',
   },
-  '260561554311046': { // Form (generic) — 1 level
-    1: 'huzaifa.dawasaz@mediaoffice.ae',
+  '260561554311046': { // Form (generic) — Approve & Sign → Form → review Task
+    1: 'bk@bettroi.com',
+    2: 'bk@bettroi.com',
+    3: 'huzaifa.dawasaz@mediaoffice.ae',
   },
   '260561614487865': { // Form demo — Approve & Sign → Form → review Task
     1: 'bk@bettroi.com',
@@ -86,8 +88,8 @@ const STEP_TYPE_CONFIG: Record<string, Record<number, StepType>> = {
   '260633424454050': { // Supplier Rating
     1: 'approval', 2: 'approval',
   },
-  '260561554311046': { // Form (generic)
-    1: 'approval',
+  '260561554311046': { // Form (generic) — Approve & Sign → Form → review Task
+    1: 'approval', 2: 'form', 3: 'task',
   },
   '260561614487865': { // Form demo — Approve & Sign → Form → review Task
     1: 'approval', 2: 'form', 3: 'task',

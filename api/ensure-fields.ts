@@ -25,7 +25,7 @@ interface FieldResult {
 const FORM_LEVELS: Record<string, number> = {
   '260633608278058': 3, // Proj Completion
   '260633424454050': 2, // Supplier Rating
-  '260561554311046': 1, // Form (generic)
+  '260561554311046': 3, // Form (generic) — Approve & Sign → Form → review Task
   '260561614487865': 3, // Form demo
   '260703226946458': 2, // Test Approval Workflow
   '260702886904463': 3, // Title Me Form
