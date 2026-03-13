@@ -537,7 +537,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     <button
                       type="button"
                       onClick={() => handleApproval('approve')}
-                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-xl font-semibold text-sm border border-emerald-500/20 transition-all cursor-pointer"
+                      style={{ pointerEvents: 'auto', opacity: 1, position: 'relative', zIndex: 50 }}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold text-sm border-2 border-emerald-400 transition-all cursor-pointer shadow-lg"
                     >
                       {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                       {approving ? 'Marking Done...' : 'Mark Form as Done'}
