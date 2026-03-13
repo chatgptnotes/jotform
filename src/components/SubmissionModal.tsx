@@ -488,9 +488,9 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                       </div>
                     )}
                     <button
-                      onClick={() => setConfirmPending('approve')}
-                      disabled={approving}
-                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gold/20 hover:bg-gold/30 disabled:opacity-30 disabled:cursor-not-allowed text-gold rounded-xl font-semibold text-sm border border-gold/20 transition-all"
+                      type="button"
+                      onClick={() => handleApproval('approve')}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gold/20 hover:bg-gold/30 text-gold rounded-xl font-semibold text-sm border border-gold/20 transition-all cursor-pointer"
                     >
                       {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
                       {approving ? 'Marking Complete...' : 'Mark Task Complete'}
@@ -535,9 +535,9 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                       </div>
                     )}
                     <button
-                      onClick={() => setConfirmPending('approve')}
-                      disabled={approving}
-                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-400 rounded-xl font-semibold text-sm border border-emerald-500/20 transition-all"
+                      type="button"
+                      onClick={() => handleApproval('approve')}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-xl font-semibold text-sm border border-emerald-500/20 transition-all cursor-pointer"
                     >
                       {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                       {approving ? 'Marking Done...' : 'Mark Form as Done'}
