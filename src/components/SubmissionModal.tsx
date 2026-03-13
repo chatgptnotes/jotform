@@ -156,7 +156,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   );
 
   // For form/task steps, any authenticated user can mark as done (not gated by designated approver)
-  const canMarkDone = !!user?.email;
+  // Always true when modal is open — the button should never be disabled for form/task steps
+  const canMarkDone = true;
 
   // Comment is optional — signature is required only for L3/L4 approvals
   const approveEnabled = isDesignatedApprover && (!signatureRequired || signature !== '');
@@ -488,7 +489,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     )}
                     <button
                       onClick={() => setConfirmPending('approve')}
-                      disabled={!canMarkDone || isSubmitting}
+                      disabled={approving}
                       className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gold/20 hover:bg-gold/30 disabled:opacity-30 disabled:cursor-not-allowed text-gold rounded-xl font-semibold text-sm border border-gold/20 transition-all"
                     >
                       {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
@@ -535,7 +536,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     )}
                     <button
                       onClick={() => setConfirmPending('approve')}
-                      disabled={!canMarkDone || isSubmitting}
+                      disabled={approving}
                       className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-400 rounded-xl font-semibold text-sm border border-emerald-500/20 transition-all"
                     >
                       {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
