@@ -134,7 +134,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
   const isSubmitting = approving || rejecting || uploadingSignature || ensuringFields;
 
   const level = typeof submission?.currentApprovalLevel === 'number' ? submission.currentApprovalLevel : null;
-  const signatureRequired = level !== null && SIGNATURE_REQUIRED_LEVELS.includes(level);
+  // Signature only required for approval steps — form/task steps skip signature
+  const signatureRequired = level !== null && SIGNATURE_REQUIRED_LEVELS.includes(level) && submission?.actionType === 'approval';
 
   // Check if this form supports direct approval (has known field map or dynamic one)
   const hasStaticFieldMap = submission !== null && level !== null && getFieldMap(submission, level) !== null;
@@ -155,9 +156,6 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     currentUser.isAdmin === true  // admins can always override (e.g. bk@bettroi.com)
   );
 
-  // For form/task steps, any authenticated user can mark as done (not gated by designated approver)
-  // Always true when modal is open — the button should never be disabled for form/task steps
-  const canMarkDone = true;
 
   // Comment is optional — signature is required only for L3/L4 approvals
   const approveEnabled = isDesignatedApprover && (!signatureRequired || signature !== '');
@@ -544,38 +542,6 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                       {approving ? 'Marking Done...' : 'Mark Form as Done'}
                     </button>
 
-                    {/* ── DEBUG PANEL — remove after fixing ── */}
-                    <div className="mt-3 p-3 rounded-lg bg-gray-900 border border-gray-700 text-xs font-mono space-y-1">
-                      <p className="text-yellow-400 font-bold">DEBUG: Mark as Done diagnostics</p>
-                      <p>user.email: <span className={user?.email ? 'text-green-400' : 'text-red-400'}>{user?.email || 'NULL'}</span></p>
-                      <p>isAdmin: <span className={currentUser.isAdmin ? 'text-green-400' : 'text-red-400'}>{String(currentUser.isAdmin)}</span></p>
-                      <p>actionType: <span className={submission.actionType === 'form' ? 'text-green-400' : 'text-red-400'}>{submission.actionType}</span></p>
-                      <p>currentLevel: <span className="text-blue-400">{String(submission.currentApprovalLevel)}</span></p>
-                      <p>approving: <span className={approving ? 'text-red-400' : 'text-green-400'}>{String(approving)}</span></p>
-                      <p>rejecting: <span className={rejecting ? 'text-red-400' : 'text-green-400'}>{String(rejecting)}</span></p>
-                      <p>ensuringFields: <span className={ensuringFields ? 'text-red-400' : 'text-green-400'}>{String(ensuringFields)}</span></p>
-                      <p>isSubmitting: <span className={isSubmitting ? 'text-red-400' : 'text-green-400'}>{String(isSubmitting)}</span></p>
-                      <p>isDesignatedApprover: <span className={isDesignatedApprover ? 'text-green-400' : 'text-red-400'}>{String(isDesignatedApprover)}</span></p>
-                      <p>designatedApproverEmail: <span className="text-blue-400">{designatedApproverEmail || 'EMPTY'}</span></p>
-                      <p>hasStaticFieldMap: <span className={hasStaticFieldMap ? 'text-green-400' : 'text-red-400'}>{String(hasStaticFieldMap)}</span></p>
-                      <p>dynamicFieldMap: <span className={dynamicFieldMap ? 'text-green-400' : 'text-yellow-400'}>{dynamicFieldMap ? `${dynamicFieldMap.length} levels` : 'null'}</span></p>
-                      <p>confirmPending: <span className="text-blue-400">{String(confirmPending)}</span></p>
-                      <p>supportsDirectApproval: <span className={supportsDirectApproval ? 'text-green-400' : 'text-red-400'}>{String(supportsDirectApproval)}</span></p>
-                      <p>levelFieldMap: <span className="text-blue-400">{submission.levelFieldMap ? JSON.stringify(submission.levelFieldMap.map(l => ({ lvl: l.level, status: l.statusFieldId }))) : 'undefined'}</span></p>
-
-                      {/* Test buttons that change color on click */}
-                      <div className="flex gap-2 mt-2">
-                        <button type="button" onClick={() => alert('Click works! onClick fires.')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs cursor-pointer">
-                          Test Click (alert)
-                        </button>
-                        <button type="button" onClick={() => setPushResult({ success: true, message: 'Test: setState works' })} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded text-xs cursor-pointer">
-                          Test setState
-                        </button>
-                        <button type="button" onClick={() => { setPushResult({ success: false, message: 'Calling handleApproval now...' }); handleApproval('approve'); }} className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded text-xs cursor-pointer">
-                          Force handleApproval
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 )}
 
