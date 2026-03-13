@@ -35,15 +35,6 @@ function AgingCell({ days }: { days: number }) {
 function PendingWithCell({ submission }: { submission: Submission }) {
   const { currentApprovalLevel, approvalHistory, actionType } = submission;
 
-  // Form-only submissions — JotForm tracks approval internally, we can't read the level
-  if (actionType === 'form') {
-    return (
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs text-gray-500 italic">Tracked in JotForm</span>
-      </div>
-    );
-  }
-
   // Completed or rejected — nothing pending
   if (currentApprovalLevel === 'completed') {
     return (
