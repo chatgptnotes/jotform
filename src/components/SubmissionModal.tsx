@@ -155,19 +155,8 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
     currentUser.isAdmin === true  // admins can always override (e.g. bk@bettroi.com)
   );
 
-  // Debug: log why button might be disabled (remove after fixing)
-  if (submission) {
-    console.log('[SubmissionModal Debug]', {
-      userEmail: user?.email,
-      currentUserIsAdmin: currentUser.isAdmin,
-      designatedApproverEmail,
-      isDesignatedApprover,
-      actionType: submission.actionType,
-      currentApprovalLevel: submission.currentApprovalLevel,
-      pendingEntry: pendingEntry ? { level: pendingEntry.level, status: pendingEntry.status, approverName: pendingEntry.approverName } : null,
-      approvalHistory: submission.approvalHistory,
-    });
-  }
+  // For form/task steps, any authenticated user can mark as done (not gated by designated approver)
+  const canMarkDone = !!user?.email;
 
   // Comment is optional — signature is required only for L3/L4 approvals
   const approveEnabled = isDesignatedApprover && (!signatureRequired || signature !== '');
@@ -499,8 +488,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     )}
                     <button
                       onClick={() => setConfirmPending('approve')}
-                      disabled={!isDesignatedApprover || isSubmitting}
-                      title={!isDesignatedApprover ? `Only ${designatedApproverEmail} can complete this task` : ''}
+                      disabled={!canMarkDone || isSubmitting}
                       className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gold/20 hover:bg-gold/30 disabled:opacity-30 disabled:cursor-not-allowed text-gold rounded-xl font-semibold text-sm border border-gold/20 transition-all"
                     >
                       {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
@@ -547,8 +535,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
                     )}
                     <button
                       onClick={() => setConfirmPending('approve')}
-                      disabled={!isDesignatedApprover || isSubmitting}
-                      title={!isDesignatedApprover ? `Only ${designatedApproverEmail} can mark this done` : ''}
+                      disabled={!canMarkDone || isSubmitting}
                       className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 disabled:opacity-30 disabled:cursor-not-allowed text-emerald-400 rounded-xl font-semibold text-sm border border-emerald-500/20 transition-all"
                     >
                       {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
