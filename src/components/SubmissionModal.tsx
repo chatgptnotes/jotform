@@ -266,6 +266,7 @@ export default function SubmissionModal({ submission, onClose, onUpdate }: Props
       _action: action,
       _level: String(lvl),
       _signatureUrl: signatureUrl,
+      _stepType: submission.actionType || 'approval',
     });
     setPushResult(result);
     setApproving(false);

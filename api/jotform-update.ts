@@ -32,12 +32,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const action = params.get('_action');       // 'approve' | 'reject'
     const levelStr = params.get('_level');      // e.g. '3'
     const signatureUrl = params.get('_signatureUrl') || '';
+    const stepType = params.get('_stepType') || 'approval'; // 'approval' | 'form' | 'task'
     params.delete('_action');
     params.delete('_level');
     params.delete('_signatureUrl');
+    params.delete('_stepType');
 
-    // Server-side: block approval at level 3/4 if no signature URL provided
-    if (action === 'approve' && levelStr) {
+    // Server-side: block approval if no signature — only for approval steps (form/task skip signature)
+    if (action === 'approve' && levelStr && stepType === 'approval') {
       const level = parseInt(levelStr, 10);
       if (SIGNATURE_REQUIRED_LEVELS.includes(level) && !signatureUrl) {
         return res.status(400).json({ error: `Digital signature is required for Level ${level} approval` });
